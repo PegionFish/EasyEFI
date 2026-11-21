@@ -2,7 +2,7 @@
 [Defines]
   INF_VERSION    = 0x0001001b
   BASE_NAME      = Editor
-  FILE_GUID      = 20D52215-8B27-40C2-9C0F-CF3F7CD67650
+  FILE_GUID      = 2F88E5D3-4380-4796-B528-D74FD392732D
   MODULE_TYPE    = UEFI_APPLICATION
   VERSION_STRING = 0.1
   ENTRY_POINT    = UefiMain
@@ -20,6 +20,9 @@
   UefiLib
   UefiBootServicesTableLib
   PrintLib
+
+[Protocols]
+  gEfiShellProtocolGuid
 
 [BuildOptions]
   GCC:*_*_*_CC_FLAGS = -DUEFI_BUILD

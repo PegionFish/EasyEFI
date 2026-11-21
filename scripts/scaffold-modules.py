@@ -91,6 +91,9 @@ APP_INF = '''## {name} STUB 应用（S00 脚手架）
   UefiBootServicesTableLib
   PrintLib
 
+[Protocols]
+  gEfiShellProtocolGuid
+
 [BuildOptions]
   GCC:*_*_*_CC_FLAGS = -DUEFI_BUILD
 '''

@@ -2,7 +2,7 @@
 [Defines]
   INF_VERSION    = 0x0001001b
   BASE_NAME      = Launcher
-  FILE_GUID      = E5FA1B30-A170-47E9-92AC-59BB34A80936
+  FILE_GUID      = 73DE1BA1-D939-4D37-B0F5-19DF80D7BE4B
   MODULE_TYPE    = UEFI_APPLICATION
   VERSION_STRING = 0.1
   ENTRY_POINT    = UefiMain
@@ -20,6 +20,9 @@
   UefiLib
   UefiBootServicesTableLib
   PrintLib
+
+[Protocols]
+  gEfiShellProtocolGuid
 
 [BuildOptions]
   GCC:*_*_*_CC_FLAGS = -DUEFI_BUILD
