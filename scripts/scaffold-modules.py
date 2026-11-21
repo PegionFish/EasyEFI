@@ -98,6 +98,9 @@ APP_INF = '''## {name} STUB 应用（S00 脚手架）
 LIB_FRAG = '''# {name} 模块碎片（leader 聚合进 EasyEfiPkg.dsc；流负责人只改本文件）
 [LibraryClasses]
   {name}|EasyEfiPkg/Library/{name}/{name}.inf
+
+[Components]
+  EasyEfiPkg/Library/{name}/{name}.inf
 '''
 
 APP_FRAG = '''# {name} 模块碎片
