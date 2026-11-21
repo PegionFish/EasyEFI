@@ -279,6 +279,12 @@ TEST (t09_11_sort_mark_free) {
   ASSERT_FALSE (vols[1].IsP3);
 
   VolFree (vols, g_ntv);
+  /* 契约裁决（main 332553a）：VolFree 不销毁 Fs（UEFI 侧缓存拥有）；
+   * 宿主测试自建的 POSIX 后端由测试显式 Destroy。 */
+  fsP3->Destroy (fsP3);
+  fsP1->Destroy (fsP1);
+  fsClone->Destroy (fsClone);
+  fsOther->Destroy (fsOther);
   tv_reset ();
   ASSERT_EQ (TestMemLiveBlocks (), 0);
   ASSERT_EQ (TestMemLiveBytes (), 0);

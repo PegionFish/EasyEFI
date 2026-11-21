@@ -165,7 +165,7 @@ UefiMain (
     Print (L"[S09] P3-FOUND fs=%s label=%s\n", vols[i].FsName, vols[i].Label);
     CHECK (EfiStrCmp (vols[i].FsName, U16 ("NTFS")) == 0, "p3-fsname-not-ntfs");
     ioSt = RunIoChain (p3);
-    p3->Destroy (p3);               /* VolFindP3 交接所有权 */
+    /* p3 为卷缓存借用（契约裁决 main 332553a），不得 Destroy */
     if (EFI_ERROR (ioSt)) {
       MemFree (bootDp);
       VolFree (vols, n);

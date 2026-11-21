@@ -47,14 +47,14 @@ EFI_STATUS VolFindP3InSet (VOLUME_INFO *Vols, UINTN Count, CONST UINT8 *BootDp,
 #include <Protocol/SimpleFileSystem.h>
 
 /**
-  由 SimpleFileSystem 句柄构造 FsOps（内部 OpenVolume 取根）。
-  失败返回 NULL。Destroy 时 Close 根并释放。
+  由 SimpleFileSystem 句柄取 FsOps（卷缓存：同句柄跨调用返回同一实例，
+  契约裁决 main 332553a）。失败返回 NULL。返回实例为借用，调用方不得 Destroy。
 **/
 FS_OPS *FsUefiBackend (EFI_HANDLE SfsHandle);
 
 /**
   由已打开的卷根构造 FsOps（接管 Root 所有权；Destroy 时 Close）。
-  VolEnumerate 复用已打开的根，避免二次 OpenVolume。
+  仅供卷缓存内部使用（VolUefi.c）；构造后须入缓存再出借。
 **/
 FS_OPS *FsUefiFromRoot (EFI_HANDLE SfsHandle, EFI_FILE_PROTOCOL *Root);
 

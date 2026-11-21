@@ -30,6 +30,86 @@ STATIC CONST EFI_GUID mMsBasicDataGuid = {
   0xEBD0A0A2, 0xB9E5, 0x4433, { 0x87, 0xC0, 0x68, 0xB6, 0xB7, 0x26, 0x99, 0xC7 }
 };
 
+/* ---- 卷 Fs 缓存（契约裁决 main 332553a）----
+ * FS_OPS 实例按 SFS 句柄缓存，跨 VolEnumerate/VolFindP3 调用指针稳定；
+ * VOLUME_INFO.Fs / VolFindP3 输出均为借用，调用方不得 Destroy；
+ * 会话级生命周期（应用退出由固件回收），只增不删——避免悬空借用。 */
+typedef struct {
+  EFI_HANDLE Handle;
+  FS_OPS     *Fs;
+} VOL_CACHE_ENTRY;
+
+STATIC VOL_CACHE_ENTRY *mVolCache  = NULL;
+STATIC UINTN           mVolCacheN = 0;
+
+STATIC
+FS_OPS *
+CacheFind (
+  EFI_HANDLE Handle
+  )
+{
+  UINTN i;
+  for (i = 0; i < mVolCacheN; i++) {
+    if (mVolCache[i].Handle == Handle) {
+      return mVolCache[i].Fs;
+    }
+  }
+  return NULL;
+}
+
+STATIC
+EFI_STATUS
+CacheAdd (
+  EFI_HANDLE Handle,
+  FS_OPS     *Fs
+  )
+{
+  VOL_CACHE_ENTRY *ne;
+
+  ne = (VOL_CACHE_ENTRY *)MemRealloc (mVolCache, (mVolCacheN + 1) * sizeof (*ne));
+  if (ne == NULL) {
+    return EFI_OUT_OF_RESOURCES;
+  }
+  mVolCache            = ne;
+  mVolCache[mVolCacheN].Handle = Handle;
+  mVolCache[mVolCacheN].Fs     = Fs;
+  mVolCacheN++;
+  return EFI_SUCCESS;
+}
+
+FS_OPS *
+FsUefiBackend (
+  EFI_HANDLE SfsHandle
+  )
+{
+  EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *sfs;
+  EFI_FILE_PROTOCOL               *root;
+  FS_OPS                          *fs;
+  EFI_STATUS                      st;
+
+  fs = CacheFind (SfsHandle);
+  if (fs != NULL) {
+    return fs;
+  }
+  st = gBS->HandleProtocol (SfsHandle, &gEfiSimpleFileSystemProtocolGuid, (VOID **)&sfs);
+  if (EFI_ERROR (st)) {
+    return NULL;
+  }
+  st = sfs->OpenVolume (sfs, &root);
+  if (EFI_ERROR (st)) {
+    return NULL;
+  }
+  fs = FsUefiFromRoot (SfsHandle, root);
+  if (fs == NULL) {
+    return NULL;
+  }
+  if (EFI_ERROR (CacheAdd (SfsHandle, fs))) {
+    fs->Destroy (fs);               /* 尚未出借，可安全销毁 */
+    return NULL;
+  }
+  return fs;
+}
+
 STATIC
 VOID
 CopyStrTrunc (
@@ -209,11 +289,22 @@ VolEnumerate (
         v->DpLen = dpSz;
       }
     }
-    /* Fs 接管 root 所有权 */
-    v->Fs = FsUefiFromRoot (handles[i], root);
-    if (v->Fs == NULL) {
-      MemFree (v->Dp);
-      continue;                     /* root 已被 FsUefiFromRoot 失败路径关闭 */
+    /* Fs：缓存命中则借用（关闭本次查询用的新 root）；未命中则接管 root 并入缓存 */
+    v->Fs = CacheFind (handles[i]);
+    if (v->Fs != NULL) {
+      root->Close (root);
+    } else {
+      v->Fs = FsUefiFromRoot (handles[i], root);
+      if (v->Fs == NULL) {
+        MemFree (v->Dp);
+        continue;                   /* root 已被 FsUefiFromRoot 失败路径关闭 */
+      }
+      if (EFI_ERROR (CacheAdd (handles[i], v->Fs))) {
+        v->Fs->Destroy (v->Fs);     /* 尚未出借，可安全销毁 */
+        v->Fs = NULL;
+        MemFree (v->Dp);
+        continue;
+      }
     }
     filled++;
   }
@@ -260,8 +351,7 @@ VolFindP3 (
   }
   st = VolFindP3InSet (vols, n, BootDp, BootLen, &idx);
   if (!EFI_ERROR (st)) {
-    *P3Fs = vols[idx].Fs;
-    vols[idx].Fs = NULL;            /* 交接所有权：caller 经 Destroy 释放 */
+    *P3Fs = vols[idx].Fs;           /* 借用：缓存拥有，caller 不得 Destroy */
   }
   VolFree (vols, n);
   MemFree (ownDp);

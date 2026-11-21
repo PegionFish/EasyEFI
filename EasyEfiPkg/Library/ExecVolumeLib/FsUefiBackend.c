@@ -922,22 +922,4 @@ FsUefiFromRoot (
   return &F->Ops;
 }
 
-FS_OPS *
-FsUefiBackend (
-  EFI_HANDLE SfsHandle
-  )
-{
-  EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *sfs;
-  EFI_FILE_PROTOCOL               *root;
-  EFI_STATUS                      st;
-
-  st = gBS->HandleProtocol (SfsHandle, &gEfiSimpleFileSystemProtocolGuid, (VOID **)&sfs);
-  if (EFI_ERROR (st)) {
-    return NULL;
-  }
-  st = sfs->OpenVolume (sfs, &root);
-  if (EFI_ERROR (st)) {
-    return NULL;
-  }
-  return FsUefiFromRoot (SfsHandle, root);
-}
+/* FsUefiBackend（带卷缓存）见 VolUefi.c —— 缓存与卷枚举共置。 */
