@@ -235,9 +235,16 @@ STATIC EFI_STATUS ValidateItem (
       return ListAdd (Errs, Index, "path", Code, "path: ",
                       (Code == CFG_ERR_TYPE) ? "expected string" : "too long (max 255)", NULL);
     }
-    if (!EFI_ERROR (PathParse (S, &Rp))) {
+    St = PathParse (S, &Rp);
+    if (!EFI_ERROR (St)) {
       CfgStrCopy (Out->Path, sizeof (Out->Path), S);
+    } else if (St == EFI_BAD_BUFFER_SIZE) {
+      /* S04 约定：Rel 超 255 CHAR16（按码点计）。防御分支——上方字节长度帽
+         （≤255 字节）先于此触发（码点数 ≤ 字节数），经核心不可达。 */
+      return ListAdd (Errs, Index, "path", CFG_ERR_TOO_LONG,
+                      "path too long (max 255 chars)", NULL, NULL);
     } else {
+      /* S04 文法非法（含非法 UTF-8/星面/控制字符/穿越/坏前缀等）→ BAD_PATH。 */
       return ListAdd (Errs, Index, "path", CFG_ERR_BAD_PATH, "invalid path grammar: ", S, NULL);
     }
   } else if (V != NULL) {
