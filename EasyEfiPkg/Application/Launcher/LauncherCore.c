@@ -142,11 +142,17 @@ STATIC VOID Utf8ToU16 (CONST CHAR8 *S, CHAR16 *Out, UINTN Cap) {
   Out[o] = 0;
 }
 
-/* fsN: + / + Rel（Rel 无前导 /，S04 约定）→ 全限定路径 */
+/* fsN: + / + Rel（Rel 无前导 /，S04 约定；反斜杠统一规范化为 /）→ 全限定路径 */
 STATIC VOID BuildFull (CHAR16 *Dst, UINTN Cap, CONST CHAR16 *FsName, CONST CHAR16 *Rel) {
+  UINTN i;
   U16Copy (Dst, Cap, FsName);
   U16Cat (Dst, Cap, U16("/"));
-  U16Cat (Dst, Cap, Rel);
+  for (i = 0; Rel[i] != 0; i++) {
+    CHAR16 One[2];
+    One[0] = (Rel[i] == '\\') ? '/' : Rel[i];
+    One[1] = 0;
+    U16Cat (Dst, Cap, One);
+  }
 }
 
 /* ---- 菜单行构建 ---- */
@@ -198,10 +204,10 @@ STATIC VOID RebuildRows (LAUNCHER_CORE *C) {
     k++;
   }
   r[k].Kind = ROW_SYS_FM;       r[k].ItemIndex = 0; r[k].Danger = FALSE;
-  r[k].Disabled = (BOOLEAN)(C->Init.Sess->BootFsName[0] == 0);
+  r[k].Disabled = (BOOLEAN)(C->Init.Sess->BootFs == NULL);
   r[k].Reason = "no boot ESP"; k++;
   r[k].Kind = ROW_SYS_EDITOR;   r[k].ItemIndex = 0; r[k].Danger = FALSE;
-  r[k].Disabled = (BOOLEAN)(C->Init.Sess->BootFsName[0] == 0);
+  r[k].Disabled = (BOOLEAN)(C->Init.Sess->BootFs == NULL);
   r[k].Reason = "no boot ESP"; k++;
   r[k].Kind = ROW_SYS_BOOTMENU; r[k].ItemIndex = 0; r[k].Danger = FALSE; r[k].Disabled = FALSE; r[k].Reason = ""; k++;
   r[k].Kind = ROW_SYS_SHELL;    r[k].ItemIndex = 0; r[k].Danger = FALSE; r[k].Disabled = FALSE; r[k].Reason = ""; k++;
@@ -377,14 +383,14 @@ STATIC VOID DoExecEfi (LAUNCHER_CORE *C, FS_OPS *Fs, CONST CHAR16 *Full, CONST C
 }
 
 STATIC VOID DoExecNsh (LAUNCHER_CORE *C, CONST CHAR16 *ScriptFull, CONST CHAR16 *Opts) {
-  CHAR16     ShellFull[PATH_CAP];
   EFI_STATUS S;
-  if (C->Init.Sess->BootFsName[0] == 0 || C->Init.ShellRel == NULL) {
+  /* S10 约定：ShellFullPath = 启动卷根相对（ExecNsh 内部经自身 LoadedImage 定位启动卷，
+     BuildFileDp 拒绝 ':'）；ScriptFullPath = fsN: 全限定（LoadOptions 用）。 */
+  if (C->Init.ShellRel == NULL || C->Init.ShellRel[0] == 0) {
     EnterError (C, U16("Boot ESP shell path unknown"));
     return;
   }
-  BuildFull (ShellFull, PATH_CAP, C->Init.Sess->BootFsName, C->Init.ShellRel);
-  S = ExecNsh (ShellFull, ScriptFull, Opts);
+  S = ExecNsh (C->Init.ShellRel, ScriptFull, Opts);
   if (EFI_ERROR (S)) {
     EnterErrorStatus (C, U16("Nested shell failed:"), S);
     return;
@@ -393,11 +399,36 @@ STATIC VOID DoExecNsh (LAUNCHER_CORE *C, CONST CHAR16 *ScriptFull, CONST CHAR16 
 }
 
 STATIC VOID ExecCandidate (LAUNCHER_CORE *C, CONST EXEC_CANDIDATE *Cand, CONST CHAR16 *Opts, BOOLEAN IsScript) {
-  if (IsScript) {
-    DoExecNsh (C, Cand->FullPath, Opts);
-  } else {
-    DoExecEfi (C, Cand->Fs, Cand->FullPath, Opts);
+  FS_OPS *Fs = Cand->Fs;            /* 宿主 mock 路径：候选 Fs 有效 */
+  CHAR16 FsName[16];
+  CHAR16 Full[PATH_CAP];
+  FsName[0] = 0;
+  /* UEFI：S10 候选 Fs 借用自已 VolFree 的枚举集（悬空）→ 经 glue 在活 Vols 中解析 */
+  if (C->Init.Ops != NULL && C->Init.Ops->AutoVol != NULL) {
+    if (EFI_ERROR (C->Init.Ops->AutoVol (C->Init.Ops->Ctx, Cand->FullPath, Cand->Display,
+                                         &Fs, FsName, 16))) {
+      EnterError (C, U16("Candidate volume no longer available"));
+      return;
+    }
   }
+  if (IsScript) {
+    /* ExecNsh 需 fsN: 全限定：候选 FullPath 已含 ':' 直接使用；否则 FsName + 根相对 */
+    if (EfiStrChr (Cand->FullPath, ':') != NULL) {
+      DoExecNsh (C, Cand->FullPath, Opts);
+    } else if (FsName[0] != 0) {
+      CONST CHAR16 *Rel = Cand->FullPath;
+      while (*Rel == '/' || *Rel == '\\') {
+        Rel++;
+      }
+      BuildFull (Full, PATH_CAP, FsName, Rel);
+      DoExecNsh (C, Full, Opts);
+    } else {
+      EnterError (C, U16("Candidate volume mapping unknown"));
+    }
+    return;
+  }
+  /* ExecEfi = 活 Fs + 根相对路径（S10 约定）；全限定形式仅宿主 mock 使用 */
+  DoExecEfi (C, Fs, Cand->FullPath, Opts);
 }
 
 STATIC VOID ExecAuto (LAUNCHER_CORE *C, CONST CHAR16 *Rel, CONST CHAR16 *Opts, BOOLEAN IsScript) {
@@ -441,26 +472,36 @@ STATIC VOID ExecResolved (LAUNCHER_CORE *C, CONST RESOLVED_PATH *P, CONST CHAR16
   CHAR16 Full[PATH_CAP];
   switch (P->Kind) {
     case PATH_DATA:
-      if (C->Init.Sess->P3Fs == NULL || C->Init.Sess->P3FsName[0] == 0) {
+      if (C->Init.Sess->P3Fs == NULL) {
         EnterError (C, U16("P3 data volume unavailable"));
         return;
       }
-      BuildFull (Full, PATH_CAP, C->Init.Sess->P3FsName, P->Rel);
       if (P->IsScript) {
+        if (C->Init.Sess->P3FsName[0] == 0) {
+          EnterError (C, U16("P3 volume mapping unknown"));
+          return;
+        }
+        BuildFull (Full, PATH_CAP, C->Init.Sess->P3FsName, P->Rel);
         DoExecNsh (C, Full, Opts);
       } else {
-        DoExecEfi (C, C->Init.Sess->P3Fs, Full, Opts);
+        DoExecEfi (C, C->Init.Sess->P3Fs, P->Rel, Opts);   /* 活 Fs + 根相对（S10 约定） */
       }
       return;
     case PATH_FS:
-      U16Copy (Full, PATH_CAP, U16("fs"));
-      U16CatUint (Full, PATH_CAP, P->FsIndex);
-      U16Cat (Full, PATH_CAP, U16(":/"));
-      U16Cat (Full, PATH_CAP, P->Rel);
       if (P->IsScript) {
+        U16Copy (Full, PATH_CAP, U16("fs"));
+        U16CatUint (Full, PATH_CAP, P->FsIndex);
+        U16Cat (Full, PATH_CAP, U16(":/"));
+        U16Cat (Full, PATH_CAP, P->Rel);
         DoExecNsh (C, Full, Opts);
       } else {
-        DoExecEfi (C, NULL, Full, Opts);   /* 显式卷号：S10 按 fsN: 前缀解析 */
+        FS_OPS *Fs = NULL;
+        if (C->Init.Ops == NULL || C->Init.Ops->FsByIndex == NULL ||
+            EFI_ERROR (C->Init.Ops->FsByIndex (C->Init.Ops->Ctx, P->FsIndex, &Fs)) || Fs == NULL) {
+          EnterError (C, U16("Explicit fs volume not found"));
+          return;
+        }
+        DoExecEfi (C, Fs, P->Rel, Opts);
       }
       return;
     case PATH_AUTO:
@@ -507,13 +548,11 @@ STATIC VOID ExecWorkItem (LAUNCHER_CORE *C, CONST CONFIG_ITEM *It) {
 }
 
 STATIC VOID ExecApp (LAUNCHER_CORE *C, CONST CHAR16 *AppRel) {
-  CHAR16 Full[PATH_CAP];
-  if (C->Init.Sess->BootFsName[0] == 0 || AppRel == NULL) {
-    EnterError (C, U16("Boot ESP mapping unknown"));
+  if (C->Init.Sess->BootFs == NULL || AppRel == NULL) {
+    EnterError (C, U16("Boot ESP volume unknown"));
     return;
   }
-  BuildFull (Full, PATH_CAP, C->Init.Sess->BootFsName, AppRel);
-  DoExecEfi (C, C->Init.Sess->BootFs, Full, U16(""));
+  DoExecEfi (C, C->Init.Sess->BootFs, AppRel, U16(""));   /* 活 Fs + 根相对（S10 约定） */
 }
 
 STATIC VOID Activate (LAUNCHER_CORE *C, UINTN Idx) {

@@ -7,9 +7,10 @@
   glue = UEFI 装配（LauncherGlue.c）：P3 发现/JSON 加载/变量读取/EASYEFI_RAN，
   持有 LAUNCHER_SESSION 与 CONFIG 生命周期，经 LAUNCHER_PLATFORM_OPS 提供回调。
 
-  路径约定（与 S10 对齐，见 docs/handoffs/S11.md）：
-  ExecEfi/ExecNsh 的 FullPath 一律 Shell 全限定 fsN:/...；Fs 参数=所属卷
-  （P3Fs/candidate->Fs），显式 fsN: 项可为 NULL（S10 按前缀解析）。
+  路径约定（对齐 S10 实际实现，见 docs/handoffs/S11.md）：
+  ExecEfi = 活 FS_OPS + 根相对路径（S10 RootRel 只去前导斜杠，不剥 fsN: 前缀）；
+  ExecNsh = fsN: 全限定路径（S10 强制含 ':'）。auto: 候选 Fs 经 glue AutoVol 回调
+  解析活卷（S09 VolFree 销毁后端，S10 候选借用 Fs 悬空——已报 leader）。
 **/
 #ifndef LAUNCHER_CORE_H
 #define LAUNCHER_CORE_H
@@ -72,6 +73,14 @@ typedef struct {
   EFI_STATUS (*Reload) (VOID *Ctx);
   /* boot:menu 枚举（BootOrder/Boot####，仅 ACTIVE）。callee MemAlloc 数组，core MemFree。 */
   EFI_STATUS (*BootEntries) (VOID *Ctx, LAUNCHER_BOOT_ENTRY **Out, UINTN *Count);
+  /* 显式 fsN: 卷号 → 活 FS_OPS（glue 经 Shell 映射/活 Vols 解析）。失败 → 错误页。
+     可 NULL（宿主 mock 无此回调时 fsN: 执行降级错误页）。 */
+  EFI_STATUS (*FsByIndex) (VOID *Ctx, UINTN Index, FS_OPS **Fs);
+  /* auto: 候选 → 活卷解析（S10 候选 Fs 借用自已释放枚举集，不可信；glue 在活 Vols
+     中按相对路径存在性+排除启动盘+Display 标签优先匹配）。FsName 供 .nsh 全限定构造。
+     可 NULL（宿主 mock 直接用候选 Fs/全限定 FullPath）。 */
+  EFI_STATUS (*AutoVol) (VOID *Ctx, CONST CHAR16 *RelPath, CONST CHAR16 *Display,
+                         FS_OPS **Fs, CHAR16 *FsName, UINTN FsNameCap);
 } LAUNCHER_PLATFORM_OPS;
 
 typedef struct {

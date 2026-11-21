@@ -44,6 +44,9 @@
 
 [Guids]
   gEfiGlobalVariableGuid
+  ## 工作区临时声明：S09 VolUefi.c 使用但 ExecVolumeLib.inf [Guids] 漏列（已报 leader，
+  ## S09 修复后本行可移除）。消费模块 AutoGen 定义该 GUID 以解链接。
+  gEfiPartTypeSystemPartGuid
 
 [Pcd]
   gEasyEfiPkgTokenSpaceGuid.PcdSkipTimeoutDefault

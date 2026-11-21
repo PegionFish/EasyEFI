@@ -77,11 +77,12 @@ STATIC UINT8 *TrimToPartition (CONST UINT8 *Dp, UINTN Len, UINTN *OutLen) {
   return NULL;
 }
 
-/* Shell 映射名（fsN:）；无 Shell/无映射 → 空串。GetMapFromDevicePath 返回 callee 分配串 */
+/* Shell 映射名：GetMapFromDevicePath 返回映射列表（"FS0:;HD0a0b:;BLK0:"）→
+   取首个 FS* token（大小写不敏感）；无 Shell/无 FS 映射 → 空串。返回串 callee 分配。 */
 STATIC VOID MapName (GLUE_CTX *G, CONST UINT8 *Dp, CHAR16 *Out, UINTN Cap) {
   EFI_DEVICE_PATH_PROTOCOL *Tmp;
-  CONST CHAR16             *Map;
-  UINTN                    i;
+  CONST CHAR16             *Map, *P, *Tok;
+  UINTN                    i, Len;
   Out[0] = 0;
   if (G->Shell == NULL || Dp == NULL) {
     return;
@@ -91,11 +92,38 @@ STATIC VOID MapName (GLUE_CTX *G, CONST UINT8 *Dp, CHAR16 *Out, UINTN Cap) {
   if (Map == NULL) {
     return;
   }
-  for (i = 0; Map[i] != 0 && i + 1 < Cap; i++) {
-    Out[i] = Map[i];
+  P = Map;
+  while (*P != 0) {
+    Tok = P;
+    while (*P != 0 && *P != ';') {
+      P++;
+    }
+    Len = (UINTN)(P - Tok);
+    if (Len >= 3 && Len < Cap &&
+        (Tok[0] == 'F' || Tok[0] == 'f') && (Tok[1] == 'S' || Tok[1] == 's') &&
+        Tok[Len - 1] == ':') {
+      for (i = 0; i < Len; i++) {
+        Out[i] = Tok[i];
+      }
+      Out[Len] = 0;
+      break;
+    }
+    if (*P == ';') {
+      P++;
+    }
   }
-  Out[i] = 0;
   FreePool ((VOID *)Map);
+}
+
+/* DP 相等比较（忽略末尾 END 节点差异：分区 DP 66B vs 卷 DP 70B+END） */
+STATIC BOOLEAN DpEqual (CONST UINT8 *A, UINTN ALen, CONST UINT8 *B, UINTN BLen) {
+  if (ALen >= 4 && A[ALen - 4] == 0x7F && A[ALen - 3] == 0xFF) {
+    ALen -= 4;
+  }
+  if (BLen >= 4 && B[BLen - 4] == 0x7F && B[BLen - 3] == 0xFF) {
+    BLen -= 4;
+  }
+  return (BOOLEAN)(ALen == BLen && CompareMem (A, B, ALen) == 0);
 }
 
 /* ---- 卷 / P3 / 启动 ESP ---- */
@@ -103,12 +131,16 @@ STATIC VOID MapName (GLUE_CTX *G, CONST UINT8 *Dp, CHAR16 *Out, UINTN Cap) {
 STATIC EFI_STATUS RefreshVolumes (GLUE_CTX *G) {
   FS_OPS *P3 = NULL;
   UINTN  i;
+  /* P3Fs 所有权在 glue（VolFindP3 移交，S09 约定）：重扫前先 Destroy 旧实例 */
+  if (G->Sess.P3Fs != NULL) {
+    G->Sess.P3Fs->Destroy (G->Sess.P3Fs);
+    G->Sess.P3Fs = NULL;
+  }
   if (G->Vols != NULL) {
-    VolFree (G->Vols, G->VolCount);
+    VolFree (G->Vols, G->VolCount);   /* VolFree 销毁各卷 Fs 后端（S09 语义） */
     G->Vols     = NULL;
     G->VolCount = 0;
   }
-  G->Sess.P3Fs   = NULL;
   G->Sess.BootFs = NULL;
   G->Sess.P3FsName[0]   = 0;
   G->Sess.BootFsName[0] = 0;
@@ -125,11 +157,10 @@ STATIC EFI_STATUS RefreshVolumes (GLUE_CTX *G) {
       }
     }
   }
-  /* 启动 ESP：分区 DP 逐字节匹配 */
+  /* 启动 ESP：分区 DP 匹配（忽略 END 节点差异） */
   if (G->BootPartDp != NULL) {
     for (i = 0; i < G->VolCount; i++) {
-      if (G->Vols[i].DpLen == G->BootPartDpLen &&
-          CompareMem (G->Vols[i].Dp, G->BootPartDp, G->BootPartDpLen) == 0) {
+      if (DpEqual (G->Vols[i].Dp, G->Vols[i].DpLen, G->BootPartDp, G->BootPartDpLen)) {
         G->Sess.BootFs = G->Vols[i].Fs;
         MapName (G, G->Vols[i].Dp, G->Sess.BootFsName, 16);
         break;
@@ -381,10 +412,83 @@ STATIC EFI_STATUS BootEntriesCb (VOID *Ctx, LAUNCHER_BOOT_ENTRY **Out, UINTN *Co
   return EFI_SUCCESS;
 }
 
+/* 显式 fsN: → 活 FS_OPS：Shell 映射 DP 与活 Vols 的 Dp 逐字节匹配 */
+STATIC EFI_STATUS FsByIndexCb (VOID *Ctx, UINTN Index, FS_OPS **Fs) {
+  GLUE_CTX *G = (GLUE_CTX *)Ctx;
+  CHAR16   Map[16];
+  CONST EFI_DEVICE_PATH_PROTOCOL *Dp;
+  UINTN    i, Len;
+  *Fs = NULL;
+  if (G->Shell == NULL) {
+    return EFI_NOT_FOUND;
+  }
+  UnicodeSPrint (Map, sizeof (Map), L"fs%u:", Index);
+  Dp = G->Shell->GetDevicePathFromMap (Map);
+  if (Dp == NULL) {
+    return EFI_NOT_FOUND;
+  }
+  Len = GetDevicePathSize (Dp);
+  for (i = 0; i < G->VolCount; i++) {
+    if (DpEqual (G->Vols[i].Dp, G->Vols[i].DpLen, (CONST UINT8 *)Dp, Len)) {
+      *Fs = G->Vols[i].Fs;
+      return EFI_SUCCESS;
+    }
+  }
+  return EFI_NOT_FOUND;
+}
+
+/* auto: 候选 → 活卷：排除启动盘 + 相对路径存在性 + Display 标签优先（S10 候选 Fs 悬空 workaround） */
+STATIC EFI_STATUS AutoVolCb (VOID *Ctx, CONST CHAR16 *RelPath, CONST CHAR16 *Display,
+                             FS_OPS **Fs, CHAR16 *FsName, UINTN FsNameCap) {
+  GLUE_CTX   *G = (GLUE_CTX *)Ctx;
+  CONST CHAR16 *Rel = RelPath;
+  UINTN      i, Hits = 0, Pick = 0;
+  FS_ENTRY   E;
+  *Fs = NULL;
+  if (FsName != NULL && FsNameCap > 0) {
+    FsName[0] = 0;
+  }
+  while (*Rel == '/' || *Rel == '\\') {
+    Rel++;
+  }
+  for (i = 0; i < G->VolCount; i++) {
+    if (G->Vols[i].Fs == NULL) {
+      continue;
+    }
+    if (VolSameDisk (G->BootDp, G->BootDpLen, G->Vols[i].Dp, G->Vols[i].DpLen)) {
+      continue;                     /* 排除启动盘全部分区（F03） */
+    }
+    if (EFI_ERROR (G->Vols[i].Fs->Info (G->Vols[i].Fs, Rel, &E)) || E.IsDir) {
+      continue;
+    }
+    Hits++;
+    if (Hits == 1) {
+      Pick = i;
+    }
+    /* Display = "<Label>: \<rel>"（S10 BuildDisplay）→ 标签前缀优先 */
+    if (Display != NULL && G->Vols[i].Label[0] != 0 &&
+        EfiStrnCmp (Display, G->Vols[i].Label, EfiStrLen (G->Vols[i].Label)) == 0) {
+      Pick = i;
+    }
+  }
+  if (Hits == 0) {
+    return EFI_NOT_FOUND;
+  }
+  *Fs = G->Vols[Pick].Fs;
+  if (FsName != NULL && FsNameCap > 0) {
+    MapName (G, G->Vols[Pick].Dp, FsName, FsNameCap);
+  }
+  return EFI_SUCCESS;
+}
+
 /* ---- 清理 / 入口 ---- */
 
 STATIC VOID GlueCleanup (GLUE_CTX *G) {
   FreeConfig (G);
+  if (G->Sess.P3Fs != NULL) {
+    G->Sess.P3Fs->Destroy (G->Sess.P3Fs);   /* VolFindP3 移交的所有权 */
+    G->Sess.P3Fs = NULL;
+  }
   if (G->Vols != NULL) {
     VolFree (G->Vols, G->VolCount);
   }
@@ -424,14 +528,28 @@ EFI_STATUS EFIAPI UefiMain (IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABLE *Syst
   StrCpyS (G->ShellRel, 64, L"EFI/BOOT/BOOTX64.EFI");
 #endif
 
-  /* 自身 LoadedImage 设备路径 → 启动盘身份 + 启动 ESP 分区 DP */
-  if (!EFI_ERROR (gBS->HandleProtocol (ImageHandle, &gEfiLoadedImageProtocolGuid, (VOID **)&Li)) &&
-      Li->FilePath != NULL) {
-    UINTN Sz = GetDevicePathSize (Li->FilePath);
-    G->BootDp = AllocateCopyPool (Sz, Li->FilePath);
+  /* 启动盘身份：LoadedImage->DeviceHandle 的分区 DP（含 HD(GPT) 节点）。
+     注意：FilePath 可能仅 FILEPATH 节点（Shell 映射启动，S15 实证②）——不可用作盘身份。 */
+  if (!EFI_ERROR (gBS->HandleProtocol (ImageHandle, &gEfiLoadedImageProtocolGuid, (VOID **)&Li))) {
+    EFI_DEVICE_PATH_PROTOCOL *DevDp = NULL;
+    if (Li->DeviceHandle != NULL &&
+        !EFI_ERROR (gBS->HandleProtocol (Li->DeviceHandle, &gEfiDevicePathProtocolGuid, (VOID **)&DevDp)) &&
+        DevDp != NULL) {
+      UINTN Sz = GetDevicePathSize (DevDp);
+      G->BootDp = AllocateCopyPool (Sz, DevDp);
+      if (G->BootDp != NULL) {
+        G->BootDpLen = Sz;
+      }
+    }
+    if (G->BootDp == NULL && Li->FilePath != NULL) {   /* 兜底：FilePath（可能无 HD 节点） */
+      UINTN Sz = GetDevicePathSize (Li->FilePath);
+      G->BootDp = AllocateCopyPool (Sz, Li->FilePath);
+      if (G->BootDp != NULL) {
+        G->BootDpLen = Sz;
+      }
+    }
     if (G->BootDp != NULL) {
-      G->BootDpLen  = Sz;
-      G->BootPartDp = TrimToPartition (G->BootDp, Sz, &G->BootPartDpLen);
+      G->BootPartDp = TrimToPartition (G->BootDp, G->BootDpLen, &G->BootPartDpLen);
     }
   }
 
@@ -453,6 +571,8 @@ EFI_STATUS EFIAPI UefiMain (IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABLE *Syst
   Ops.Ctx         = G;
   Ops.Reload      = ReloadCb;
   Ops.BootEntries = BootEntriesCb;
+  Ops.FsByIndex   = FsByIndexCb;
+  Ops.AutoVol     = AutoVolCb;
   ZeroMem (&Init, sizeof (Init));
   Init.Sess           = &G->Sess;
   Init.BootDp         = G->BootDp;
