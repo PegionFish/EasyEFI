@@ -2,3 +2,4 @@
 tests/run-tests
 tests/*.dSYM/
 smoke/build/
+smoke/build-run-*.log
