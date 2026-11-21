@@ -48,3 +48,4 @@
 !include EasyEfiPkg/Application/Launcher/module.dsc.inc
 !include EasyEfiPkg/Application/FileManager/module.dsc.inc
 !include EasyEfiPkg/Application/Editor/module.dsc.inc
+!include boot/ShellRunner/module.dsc.inc
