@@ -62,3 +62,8 @@
 - 并行机制有效：19 任务包，契约审批 2 项，跨流互查发现 9 个平台/契约 bug + 8 个机制实证 + 8 个固件 quirks。
 - 单流宿主测试（ASan/UBSan）抓内存错误（S02 两个 use-after-free）；QEMU 冒烟抓固件交互/集成 bug；两者互补缺一不可。
 - 完整镜像双架构引导全链路 PASS（双 ESP 路由+Shell+startup.nsh+NTFS 驱动+Launcher）；fix-gpt 备份头迁移+扩容验证。
+
+## E. EfiMem 隐藏头使用纪律（S12 实证）
+尺寸跟踪头实现后 MemAlloc 指针带 16B 隐藏头：**MemAlloc↔MemFree 配对，裸 AllocatePool/AllocateCopyPool↔FreePool 配对，不可混用**。
+MemFree 对裸指针 FreePool(ptr-16) 触发 DxeCore 签名 ASSERT；RELEASE 下 canary ASSERT 编译掉→延迟爆雷。
+core/纯逻辑统一 MemAlloc/MemFree；glue 用裸池函数须配对 FreePool。MockTui 已加 bit7 属性守卫（S08 建议）。
