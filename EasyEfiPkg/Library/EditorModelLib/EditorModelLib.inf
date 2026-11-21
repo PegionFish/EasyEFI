@@ -1,4 +1,4 @@
-## EditorModelLib STUB（S00 脚手架；流负责人替换 Sources 为真实实现）
+## EditorModelLib — 行数组编辑模型（S02 真实实现；契约 Include/Contract/EditorModel.h）
 [Defines]
   INF_VERSION    = 0x0001001b
   BASE_NAME      = EditorModelLib
@@ -8,7 +8,7 @@
   LIBRARY_CLASS  = EditorModelLib|UEFI_APPLICATION UEFI_DRIVER DXE_DRIVER
 
 [Sources]
-  EditorModelLibStub.c
+  EditorModel.c
 
 [Packages]
   MdePkg/MdePkg.dec
@@ -16,6 +16,7 @@
 
 [LibraryClasses]
   EfiCompatLib
+  Utf8Lib
 
 [BuildOptions]
   GCC:*_*_*_CC_FLAGS = -DUEFI_BUILD
