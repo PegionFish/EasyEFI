@@ -4,9 +4,12 @@
   语义依据 design §5.6 / D9 / D10 与评审 F01 / F03 / F20（均已对 edk2-stable202608 源码核实）：
   - ExecEfi：LoadImage(卷设备路径+文件路径) + StartImage；StartImage 前保存 ConOut
     模式/关闭自身事件，返回后恢复；ImageReturn 捕获目标返回码。
-  - ExecNsh：LoadImage(启动 ESP 的 Shell.efi) + LoadOptions = L"<脚本全限定路径> [参数]"。
+  - ExecNsh：LoadImage(启动 ESP 的 Shell.efi) + LoadOptions =
+    L"Shell.efi <脚本全限定路径> [参数]"（argv[0] 镜像名令牌 + 契约规定的脚本/参数载荷）。
     Shell 命令行 file-name 隐式 -nostartup（Shell.c ProcessCommandLine 原文），防 startup.nsh
-    递归；不存在 -s 选项 [F01]。脚本路径含空格时必须加双引号（ShellParametersProtocol.c
+    递归；不存在 -s 选项 [F01]。Argv[0] 被 ProcessCommandLine 当镜像名跳过，file-name 须
+    在 Argv[1+]（EfiShellExecute 同款前置 L"Shell.efi "；缺失则 startup.nsh 重跑递归，
+    QEMU 实证）。脚本路径含空格时必须加双引号（ShellParametersProtocol.c
     ParseCommandLineToArgs 按空格分词，StripQuotation=TRUE）。脚本结束后停在嵌套 Shell
     提示符（不加 -exit），exit 回调用方 [F20]。
   - ExecBootNext：BootNext(UINT16 LE, NV|BS|RT) + ResetSystem(EfiResetCold)。
@@ -300,17 +303,25 @@ ExecNsh (
     return EFI_INVALID_PARAMETER;
   }
 
-  /* LoadOptions = ["]<script>["][ <args>]（UCS-2，含 NUL）。
+  /* LoadOptions = "Shell.efi " + ["]<script>["][ <args>]（UCS-2，含 NUL）。
+     argv[0] 令牌不可省：Shell ProcessCommandLine 把 Argv[0] 当镜像名跳过
+     （Shell.c 原文 "First argument should be Shell.efi image name"），file-name
+     须落在 Argv[1+]；EfiShellExecute 启动嵌套 Shell 同样前置 L"Shell.efi "。
+     缺此令牌 → file-name 不被解析 → startup.nsh 重跑 → 递归（QEMU 实证栈耗尽）。
      含空格必须加引号：Shell 按空格分词后再对含空格 file-name 自动补引号。 */
   Quote     = (EfiStrChr (ScriptFullPath, L' ') != NULL);
   ScriptLen = EfiStrLen (ScriptFullPath);
   ArgsLen   = (Args != NULL && Args[0] != 0) ? EfiStrLen (Args) : 0;
-  Total     = ScriptLen + (Quote ? 2 : 0) + (ArgsLen != 0 ? 1 + ArgsLen : 0) + 1;
+  Total     = 10 /* L"Shell.efi " */ + ScriptLen + (Quote ? 2 : 0) +
+              (ArgsLen != 0 ? 1 + ArgsLen : 0) + 1;
   Opts = (CHAR16 *)MemAlloc (Total * sizeof (CHAR16));
   if (Opts == NULL) {
     return EFI_OUT_OF_RESOURCES;
   }
   Pos = 0;
+  Opts[Pos++] = L'S'; Opts[Pos++] = L'h'; Opts[Pos++] = L'e'; Opts[Pos++] = L'l';
+  Opts[Pos++] = L'l'; Opts[Pos++] = L'.'; Opts[Pos++] = L'e'; Opts[Pos++] = L'f';
+  Opts[Pos++] = L'i'; Opts[Pos++] = L' ';
   if (Quote) {
     Opts[Pos++] = L'"';
   }
