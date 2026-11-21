@@ -3,7 +3,7 @@
 echo -off
 map -r
 if exist noautorun then
-  echo [EasyEFI] noautorun flag on boot partition - staying in UEFI Shell.
+  echo [EasyEFI] noautorun flag on boot partition; staying in UEFI Shell.
 else
   EFI\Launcher\LauncherX64.efi
 endif
