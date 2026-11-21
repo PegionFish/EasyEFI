@@ -26,8 +26,9 @@ if [[ "$ARCH" == x64 ]]; then
     -drive if=pflash,format=raw,readonly=on,file="$FW/edk2-x86_64-code.fd" \
     -drive if=pflash,format=raw,file="$WORK/vars.fd"
 else
+  # aa64 virt 无默认键盘（S07 实证），补 usb-kbd；x64 q35 自带 ps2-kbd 勿加（双份事件）
   set -- qemu-system-aarch64 -machine virt -cpu host -m 2G -accel hvf \
-    -bios "$FW/edk2-aarch64-code.fd"
+    -bios "$FW/edk2-aarch64-code.fd" -device usb-kbd
 fi
 set -- "$@" -drive id=stick,file="$IMG",format=raw,if=none \
   -device qemu-xhci -device usb-storage,drive=stick \
