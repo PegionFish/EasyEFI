@@ -22,3 +22,4 @@ test: $(BIN)
 	ASAN_OPTIONS=detect_leaks=0 $(BIN)
 clean:
 	rm -f $(BIN)
+	rm -rf $(BIN).dSYM
