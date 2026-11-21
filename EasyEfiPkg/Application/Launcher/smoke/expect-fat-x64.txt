@@ -1,0 +1,5 @@
+EasyEFI v
+P3:DEGRADED
+launcher.json
+\[STUB\] FileManager x64
+Shell>

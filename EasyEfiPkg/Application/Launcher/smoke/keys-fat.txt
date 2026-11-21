@@ -1,0 +1,6 @@
+# S11 fat 变体按键（x64/aa64 通用；首键 75s：TCG 启动慢，晚到键 ConIn 排队不丢）。
+# DEGRADED 内置菜单行序：1=外部介质发现 2=FileManager 3=Editor 4=NVRAM 5=Shell 6=Reboot。
+# 倒计时（PcdSkipTimeoutDefault=2s）早已结束 → 主菜单态。
+75 2
+77 ret
+82 esc

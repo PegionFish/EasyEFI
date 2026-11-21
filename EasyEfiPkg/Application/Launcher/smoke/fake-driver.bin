@@ -1,0 +1,4 @@
+This file is intentionally not a UEFI driver image.
+mktestimage places it as EFI/Drivers/ntfs.efi so `load` fails (F25: load swallows
+the failure, script continues) -> NTFS P3 never mounts -> Launcher DEGRADED.
+Equivalent to renaming/removing the real driver (task S11 smoke requirement).
