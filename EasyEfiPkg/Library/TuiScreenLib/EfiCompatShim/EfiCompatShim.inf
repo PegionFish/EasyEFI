@@ -1,0 +1,25 @@
+## S06 临时 shim — 修正版 EfiCompatLib 实例（LIBRARY_CLASS 不变）。
+## 背景：S00 EfiMem.c 的 ReallocatePool(Ptr,0,NewSize) 参数序错误（正确签名
+## (OldSize,NewSize,OldBuffer)），-Werror 下阻塞一切链接 EfiCompatLib 的应用。
+## 仅经 module.dsc.inc 对 TuiScreenSmoke 作用域覆盖；上游修复后删除本目录。
+[Defines]
+  INF_VERSION    = 0x0001001b
+  BASE_NAME      = EfiCompatShim
+  FILE_GUID      = B15799E1-2BB9-43B5-BB40-E518DB441205
+  MODULE_TYPE    = BASE
+  VERSION_STRING = 1.0
+  LIBRARY_CLASS  = EfiCompatLib
+
+[Sources]
+  EfiMemShim.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  EasyEfiPkg/EasyEfiPkg.dec
+
+[LibraryClasses]
+  MemoryAllocationLib
+  BaseMemoryLib
+
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = -DUEFI_BUILD
