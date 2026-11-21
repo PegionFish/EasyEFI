@@ -5,4 +5,4 @@ Run target app
 \[STUB\] FileManager aarch64
 \[S11-NSH\] script-ran
 This action is marked DANGEROUS.
-Shell>
+\[S11-EXIT-aarch64\] launcher-returned

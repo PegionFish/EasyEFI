@@ -2,4 +2,4 @@ EasyEFI v
 P3:DEGRADED
 launcher.json
 \[STUB\] FileManager aarch64
-Shell>
+\[S11-EXIT-aarch64\] launcher-returned

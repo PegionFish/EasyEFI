@@ -39,24 +39,48 @@ run_arch () {
   cp "$ROOT/$FM" "$ROOT/$DATA/entries/target.efi"
 
   echo "== S11 smoke $ARCH: fat image (DEGRADED 内置菜单 + FileManager exec + ESC→Shell) =="
+  # 自定义 startup：Launcher 返回后 echo 收尾标记——证明干净退出（捕获退出清理期崩溃；
+  # 裸 "Shell>" 断言会误匹配启动初期提示符，故以收尾标记为准）。
+  {
+    echo "echo -off"
+    echo "EFI\\Apps\\Launcher.efi"
+    echo "echo [S11-EXIT-$TAG] launcher-returned"
+  } > "$ROOT/Build/s11-startup-fat-$ARCH.nsh"
   bash "$ROOT/scripts/mktestimage.sh" --arch "$UARCH" --variant fat \
     --out "Build/s11-fat-$ARCH.img" --shell "Build/Shell-$UARCH.efi" \
+    --startup "Build/s11-startup-fat-$ARCH.nsh" \
     --app "Launcher=$LAUNCHER" --app "FileManager=$FM"
   bash "$ROOT/scripts/qemu-run.sh" --arch "$ARCH" --image "$ROOT/Build/s11-fat-$ARCH.img" \
     --keys "$HERE/keys-fat.txt" --expect "$HERE/expect-fat-$ARCH.txt" --timeout "$TIMEOUT"
 
   echo "== S11 smoke $ARCH: ntfs image (P3:OK + exec + nsh + danger 确认 + ESC→Shell) =="
+  {
+    echo "echo -off"
+    echo "load %homefilesystem%\\EFI\\Drivers\\ntfs.efi"
+    echo "map -r"
+    echo "EFI\\Apps\\Launcher.efi"
+    echo "echo [S11-EXIT-$TAG] launcher-returned"
+  } > "$ROOT/Build/s11-startup-ntfs-$ARCH.nsh"
   bash "$ROOT/scripts/mktestimage.sh" --arch "$UARCH" --variant ntfs \
     --out "Build/s11-ntfs-$ARCH.img" --shell "Build/Shell-$UARCH.efi" \
     --driver "$NTFS" --data-dir "$DATA" \
+    --startup "Build/s11-startup-ntfs-$ARCH.nsh" \
     --app "Launcher=$LAUNCHER" --app "FileManager=$FM"
   bash "$ROOT/scripts/qemu-run.sh" --arch "$ARCH" --image "$ROOT/Build/s11-ntfs-$ARCH.img" \
     --keys "$HERE/keys-ntfs.txt" --expect "$HERE/expect-ntfs-$ARCH.txt" --timeout "$TIMEOUT"
 
   echo "== S11 smoke $ARCH: degraded image (假驱动 load 失败 → P3 缺失 → DEGRADED) =="
+  {
+    echo "echo -off"
+    echo "load %homefilesystem%\\EFI\\Drivers\\ntfs.efi"
+    echo "map -r"
+    echo "EFI\\Apps\\Launcher.efi"
+    echo "echo [S11-EXIT-$TAG] launcher-returned"
+  } > "$ROOT/Build/s11-startup-degraded-$ARCH.nsh"
   bash "$ROOT/scripts/mktestimage.sh" --arch "$UARCH" --variant ntfs \
     --out "Build/s11-degraded-$ARCH.img" --shell "Build/Shell-$UARCH.efi" \
     --driver "EasyEfiPkg/Application/Launcher/smoke/fake-driver.bin" --data-dir "$DATA" \
+    --startup "Build/s11-startup-degraded-$ARCH.nsh" \
     --app "Launcher=$LAUNCHER" --app "FileManager=$FM"
   bash "$ROOT/scripts/qemu-run.sh" --arch "$ARCH" --image "$ROOT/Build/s11-degraded-$ARCH.img" \
     --keys "$HERE/keys-degraded.txt" --expect "$HERE/expect-degraded.txt" --timeout "$TIMEOUT"
