@@ -14,8 +14,7 @@ RUN sed -i 's|http://ports.ubuntu.com/ubuntu-ports|http://mirrors.aliyun.com/ubu
     uuid-runtime uuid-dev mtools gdisk dosfstools ntfs-3g \
     git python3 python3-distutils curl xz-utils file cpio \
     && rm -rf /var/lib/apt/lists/*
-COPY edk2 /edk2
-RUN make -C /edk2/BaseTools
+# edk2 不再烘焙进镜像：运行时 -v ~/.cache/easyefi/edk2:/edk2:ro 挂载（BaseTools 已在其中编译）
 ENV GCC_BIN=x86_64-linux-gnu- \
     GCC_AARCH64_PREFIX=aarch64-linux-gnu- \
     EDK2_PATH=/edk2

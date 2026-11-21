@@ -47,16 +47,30 @@ EFI_STATUS VolFindP3InSet (VOLUME_INFO *Vols, UINTN Count, CONST UINT8 *BootDp,
 #include <Protocol/SimpleFileSystem.h>
 
 /**
-  由 SimpleFileSystem 句柄构造 FsOps（内部 OpenVolume 取根）。
-  失败返回 NULL。Destroy 时 Close 根并释放。
+  由 SimpleFileSystem 句柄取 FsOps（卷缓存：同句柄跨调用返回同一实例，
+  契约裁决 main 332553a）。失败返回 NULL。返回实例为借用，调用方不得 Destroy。
 **/
 FS_OPS *FsUefiBackend (EFI_HANDLE SfsHandle);
 
 /**
   由已打开的卷根构造 FsOps（接管 Root 所有权；Destroy 时 Close）。
-  VolEnumerate 复用已打开的根，避免二次 OpenVolume。
+  仅供卷缓存内部使用（VolUefi.c）；构造后须入缓存再出借。
 **/
 FS_OPS *FsUefiFromRoot (EFI_HANDLE SfsHandle, EFI_FILE_PROTOCOL *Root);
+
+/**
+  健壮 GetInfo（callee 分配，caller MemFree）：非零起始缓冲 + 有界重试。
+  兼容标准两阶段语义（FAT）与 EfiFs/ntfs-3g 非标准语义（S14 交接已知限制 2：
+  NULL/0 问尺寸不回写；缓冲偏大返回 TOO_SMALL+精确尺寸；恰好相等才成功）。
+**/
+EFI_STATUS UefiGetInfoRobust (EFI_FILE_PROTOCOL *File, EFI_GUID *Guid, VOID **Buf, UINTN *Size);
+
+/**
+  自身启动设备路径全字节（callee MemAlloc，含 END 节点）。
+  注意：LoadedImage.FilePath 仅是文件部分（相对 DeviceHandle）；
+  完整路径 = DeviceHandle 的设备路径（含 HD(GPT) 分区节点）+ FilePath。
+**/
+EFI_STATUS VolOwnBootDp (UINT8 **Dp, UINTN *Len);
 
 #endif /* UEFI_BUILD */
 

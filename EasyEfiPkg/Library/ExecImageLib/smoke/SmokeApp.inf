@@ -1,0 +1,39 @@
+## S10 冒烟测试应用（TEST-ONLY；经 smoke/Smoke.dsc 独立构建，不进聚合器）
+[Defines]
+  INF_VERSION    = 0x0001001b
+  BASE_NAME      = S10Smoke
+  FILE_GUID      = B3CDB8D1-D402-4846-B0ED-322101490A19
+  MODULE_TYPE    = UEFI_APPLICATION
+  VERSION_STRING = 1.0
+  ENTRY_POINT    = UefiMain
+
+[Sources]
+  SmokeApp.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  EasyEfiPkg/EasyEfiPkg.dec
+  ShellPkg/ShellPkg.dec
+
+[LibraryClasses]
+  BaseLib
+  BaseMemoryLib
+  MemoryAllocationLib
+  PrintLib
+  UefiLib
+  UefiBootServicesTableLib
+  UefiApplicationEntryPoint
+  DevicePathLib
+  EfiCompatLib
+  ExecImageLib
+  VolumeModelLib
+  ExecVolumeLib
+
+[Protocols]
+  gEfiLoadedImageProtocolGuid
+  gEfiDevicePathProtocolGuid
+  gEfiSimpleFileSystemProtocolGuid
+  gEfiShellProtocolGuid
+
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = -DUEFI_BUILD

@@ -5,6 +5,8 @@
 #include "Contract/EfiMem.h"
 #include "MockTui.h"
 #include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #define MOCK_MAX_ROWS 64
 #define MOCK_MAX_COLS 200
@@ -40,6 +42,14 @@ EFI_STATUS TuiInit (VOID) { memset (g_cells, 0, sizeof (g_cells)); return EFI_SU
 EFI_STATUS TuiGetSize (UINTN *Rows, UINTN *Cols) { *Rows = g_rows; *Cols = g_cols; return EFI_SUCCESS; }
 VOID TuiPutCell (UINTN Row, UINTN Col, CHAR16 Ch, UINT8 Attr) {
   if (Row >= g_rows || Col >= g_cols) return;
+  /* 属性合法性守卫（S08 建议）：真实固件 SetAttribute 拒绝 bit7（背景仅 bit4-6，
+     无亮背景）。宿主 mock 在此拦截，使非法属性 bug 宿主测试即暴露（此前 MockTui
+     不校验→TUI_ATTR_SELECTED 0xB0 宿主全绿但实机不渲染）。 */
+  if (Attr & 0x80) {
+    fprintf (stderr, "MockTui: INVALID attr 0x%02x (bit7 set) at (%u,%u) — firmware would reject\n",
+             Attr, (unsigned)Row, (unsigned)Col);
+    abort ();
+  }
   g_cells[Row][Col].Char = Ch; g_cells[Row][Col].Attr = Attr;
 }
 VOID TuiPutText (UINTN Row, UINTN Col, CONST CHAR16 *Text, UINT8 Attr) {

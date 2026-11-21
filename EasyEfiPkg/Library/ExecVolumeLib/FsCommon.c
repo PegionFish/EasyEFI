@@ -232,13 +232,13 @@ VolFree (
   if (Vols == NULL) {
     return;
   }
+  /* 契约裁决（main 332553a，S11 悬空 Fs 崩溃根因）：VolFree 只释放数组与 Dp，
+   * 不销毁 Fs —— UEFI 侧 FS_OPS 按卷缓存、指针跨调用稳定、调用方借用；
+   * 宿主侧 FsPosixBackend 实例由构造者自行 Destroy。 */
   for (i = 0; i < Count; i++) {
     MemFree (Vols[i].Dp);
     Vols[i].Dp = NULL;
-    if (Vols[i].Fs != NULL) {
-      Vols[i].Fs->Destroy (Vols[i].Fs);
-      Vols[i].Fs = NULL;
-    }
+    Vols[i].Fs = NULL;
   }
   MemFree (Vols);
 }

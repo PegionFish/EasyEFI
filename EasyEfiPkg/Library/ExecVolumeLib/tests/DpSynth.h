@@ -52,7 +52,7 @@ static inline void DpHdGpt (DP_BUF *b, UINT32 PartNum, UINT64 Start, UINT64 Size
   DpU64 (p + 4, Start);
   DpU64 (p + 12, Size);
   memcpy (p + 20, Sig, 16);
-  p[36] = 0;                    /* MBRType */
+  p[36] = 2;                    /* MBRType = GPT（edk2 PartitionDxe/Gpt.c 实证） */
   p[37] = 2;                    /* SignatureType = GPT */
   DpRaw (b, 0x04, 0x01, p, 38);
 }
