@@ -53,7 +53,7 @@ elif [[ -n "$FIRST_APP" ]]; then
   {
     echo "echo -off"
     if [[ "$VARIANT" == ntfs ]]; then
-      echo "load EFI\\Drivers\\ntfs.efi"
+      echo "load %homefilesystem%\\EFI\\Drivers\\ntfs.efi"
       echo "map -r"
     fi
     echo "EFI\\Apps\\${FIRST_APP}.efi"
