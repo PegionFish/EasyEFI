@@ -78,7 +78,9 @@ STATIC UINT8 *TrimToPartition (CONST UINT8 *Dp, UINTN Len, UINTN *OutLen) {
 }
 
 /* Shell 映射名：GetMapFromDevicePath 返回映射列表（"FS0:;HD0a0b:;BLK0:"）→
-   取首个 FS* token（大小写不敏感）；无 Shell/无 FS 映射 → 空串。返回串 callee 分配。 */
+   取首个 FS* token（大小写不敏感）；无 Shell/无 FS 映射 → 空串。
+   注意（集成实证 A8，S12 发现）：返回串挂 Shell 延迟释放链表（AddBufferToFreeList），
+   **不得 FreePool**（提前释放 → Shell RestoreBufferList 踩 0xAF 池损坏）。 */
 STATIC VOID MapName (GLUE_CTX *G, CONST UINT8 *Dp, CHAR16 *Out, UINTN Cap) {
   EFI_DEVICE_PATH_PROTOCOL *Tmp;
   CONST CHAR16             *Map, *P, *Tok;
@@ -112,7 +114,7 @@ STATIC VOID MapName (GLUE_CTX *G, CONST UINT8 *Dp, CHAR16 *Out, UINTN Cap) {
       P++;
     }
   }
-  FreePool ((VOID *)Map);
+  /* 不 FreePool(Map)：Shell 延迟释放链表所有（A8） */
 }
 
 /* DP 相等比较（忽略末尾 END 节点差异：分区 DP 66B vs 卷 DP 70B+END） */
@@ -131,16 +133,14 @@ STATIC BOOLEAN DpEqual (CONST UINT8 *A, UINTN ALen, CONST UINT8 *B, UINTN BLen) 
 STATIC EFI_STATUS RefreshVolumes (GLUE_CTX *G) {
   FS_OPS *P3 = NULL;
   UINTN  i;
-  /* P3Fs 所有权在 glue（VolFindP3 移交，S09 约定）：重扫前先 Destroy 旧实例 */
-  if (G->Sess.P3Fs != NULL) {
-    G->Sess.P3Fs->Destroy (G->Sess.P3Fs);
-    G->Sess.P3Fs = NULL;
-  }
+  /* P3Fs/Vols[].Fs 均为卷缓存借用（契约裁决 main 332553a）：不得 Destroy，
+     VolFree 只释放数组与 Dp；缓存会话级稳定，重扫直接换指针。 */
   if (G->Vols != NULL) {
-    VolFree (G->Vols, G->VolCount);   /* VolFree 销毁各卷 Fs 后端（S09 语义） */
+    VolFree (G->Vols, G->VolCount);
     G->Vols     = NULL;
     G->VolCount = 0;
   }
+  G->Sess.P3Fs   = NULL;
   G->Sess.BootFs = NULL;
   G->Sess.P3FsName[0]   = 0;
   G->Sess.BootFsName[0] = 0;
@@ -485,10 +485,7 @@ STATIC EFI_STATUS AutoVolCb (VOID *Ctx, CONST CHAR16 *RelPath, CONST CHAR16 *Dis
 
 STATIC VOID GlueCleanup (GLUE_CTX *G) {
   FreeConfig (G);
-  if (G->Sess.P3Fs != NULL) {
-    G->Sess.P3Fs->Destroy (G->Sess.P3Fs);   /* VolFindP3 移交的所有权 */
-    G->Sess.P3Fs = NULL;
-  }
+  /* P3Fs 为卷缓存借用，不 Destroy（契约裁决 332553a；会话级生命周期） */
   if (G->Vols != NULL) {
     VolFree (G->Vols, G->VolCount);
   }

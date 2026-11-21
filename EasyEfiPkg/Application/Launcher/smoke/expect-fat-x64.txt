@@ -1,5 +1,5 @@
 EasyEFI v
 P3:DEGRADED
 launcher.json
-\[STUB\] FileManager x64
+\[S11-TARGET\] ran x64
 \[S11-EXIT-x64\] launcher-returned

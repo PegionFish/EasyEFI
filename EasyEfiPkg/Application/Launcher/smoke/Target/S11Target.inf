@@ -1,0 +1,23 @@
+## S11 冒烟目标应用（ExecEfi 标记目标；经 Launcher 碎片 [Components] 接入）
+[Defines]
+  INF_VERSION    = 0x0001001b
+  BASE_NAME      = S11Target
+  FILE_GUID      = 139EBBFB-3277-49C4-8B9B-CEEA5D9CD403
+  MODULE_TYPE    = UEFI_APPLICATION
+  VERSION_STRING = 1.0
+  ENTRY_POINT    = UefiMain
+
+[Sources]
+  S11Target.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  UefiApplicationEntryPoint
+  UefiLib
+  PrintLib
+  UefiBootServicesTableLib
+
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = -DUEFI_BUILD

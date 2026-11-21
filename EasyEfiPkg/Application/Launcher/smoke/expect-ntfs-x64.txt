@@ -2,7 +2,7 @@ EasyEFI v1.0
 P3:OK
 S11 Smoke
 Run target app
-\[STUB\] FileManager x64
+\[S11-TARGET\] ran x64
 \[S11-NSH\] script-ran
 This action is marked DANGEROUS.
 \[S11-EXIT-x64\] launcher-returned
