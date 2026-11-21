@@ -51,6 +51,11 @@ typedef struct {
 EFI_STATUS VolEnumerate (VOLUME_INFO **Vols, UINTN *Count);
 /* P3 发现（design §5.2）：同盘+分区3+.easyefi 标记；兜底全盘扫标记；失败 EFI_NOT_FOUND */
 EFI_STATUS VolFindP3 (CONST UINT8 *BootDp, UINTN BootLen, FS_OPS **P3Fs);
+/* VolFree 只释放 VOLUME_INFO 数组与 Dp，**不销毁 Fs 实例**。
+   FS_OPS 实例按卷缓存、跨调用指针稳定（S09 实现约束）；VOLUME_INFO.Fs 与
+   EXEC_CANDIDATE.Fs 均为借用（不拥有），生命周期由卷缓存管理（会话级）。
+   所有权裁决（leader，S11 定位 auto: 候选 Fs 悬空崩溃后）：VolFree 若 Destroy Fs
+   会使 ExecAutoCandidates 返回的候选 Fs 悬空→ExecEfi 调 0xAF 毒化指针崩溃。 */
 VOID       VolFree (VOLUME_INFO *Vols, UINTN Count);
 
 /* 宿主 POSIX 后端（S09 交付；root 为临时目录 UTF-8 路径） */
