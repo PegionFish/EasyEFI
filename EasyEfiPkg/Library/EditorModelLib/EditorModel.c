@@ -12,6 +12,8 @@
 
   插入经 Utf8Encode→Utf8Decode 落地为 token：编码策略完全委托 Utf8Lib，
   模型内所有 token 均为解码器产物，字节宽度精确、Save→Load→Save 幂等。
+  非法码点（代理区/超 U+10FFFF）插入由 Utf8Encode 拒绝 → EFI_INVALID_PARAMETER，
+  模型不改动。
 
   光标：行/列均 0 基（列 = token 索引，可等于行长 = 行尾插入位）；越界一律钳制。
   ModelGotoLine 为 1 基。MODEL_INFO.ByteSize = 加载时字节数（契约语义）。
@@ -20,8 +22,9 @@
   查找：token 级 CP 子串（RAW 不透明字节不参与匹配）；大小写开关仅折叠 ASCII；
   空 needle → 0 命中；允许重叠命中。渲染：1 token = 1 格（宽度恒 1，宽字符不越界）。
 
-  注意：不使用 MemRealloc —— S00 EfiCompatLib/EfiMem.c 的 UEFI 后端
-  ReallocatePool 参数序有误（见交接注记），增长统一走 MemAlloc+copy+MemFree。
+  注意：增长统一走 MemAlloc+copy+MemFree，不使用 MemRealloc（S00 原 UEFI 后端
+  ReallocatePool 参数序有误，S01 上报后 leader 已在 main 修复为尺寸跟踪头；
+  本库保持只依赖 MemAlloc/MemFree 两个原语）。
 **/
 #include "Contract/EfiCompat.h"
 #include "Contract/EfiMem.h"

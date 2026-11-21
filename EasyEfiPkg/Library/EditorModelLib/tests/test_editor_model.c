@@ -1,7 +1,6 @@
 /* S02 EditorModelLib 宿主测试（编号用例 T02-1..10，任务书 DoD 依据）。
- * 运行: make -f host.mk test（模块目录内）。
- * REAL_UTF8=0（S01 未合并）: 中文 CP 级子用例编译期跳过（Utf8Shim 非 ASCII 全 RAW）；
- * REAL_UTF8=1（S01 合并后）: 全部子用例启用。字节级用例两阶段均运行。
+ * 运行: make -f host.mk test（模块目录内；链接真实 S01 Utf8Lib）。
+ * 历史：S01 合并前中文 CP 级子用例曾以 S02_REAL_UTF8 门控（垫片阶段），现已全部启用。
  */
 #include "test.h"
 #include "Contract/EditorModel.h"
@@ -360,8 +359,7 @@ TEST (t02_5_find) {
     ASSERT_OK (ModelFind (M, Needle, 1, TRUE, &Hits, &Count));
     ASSERT_EQ (Count, 0);
   }
-#ifdef S02_REAL_UTF8
-  /* 中文 needle（真实 Utf8Lib：非 ASCII 解出 CP token） */
+  /* 中文 needle（非 ASCII 解出 CP token） */
   {
     UINT32 Zh[] = { 0x4E2D, 0x6587 };
     LoadStr (M, "# \xE4\xB8\xAD\xE6\x96\x87\n\xE4\xB8\xAD\xE6\x96\x87 ok\n");
@@ -373,9 +371,6 @@ TEST (t02_5_find) {
     }
     ModelFreeHits (Hits);
   }
-#else
-  printf ("  [note] T02-5 中文 needle 子用例待真实 Utf8Lib（make -f host.mk test REAL_UTF8=1）\n");
-#endif
   ModelFreeHits (NULL);   /* NULL 安全 */
   ModelFree (M);
 }
@@ -422,15 +417,11 @@ TEST (t02_6_goto_clamp) {
   ASSERT_OK (ModelInfo (M, &Info));
   ASSERT_EQ (Info.CursorLine, 1);
   ASSERT_EQ (Info.CursorCol, 5);
-#ifdef S02_REAL_UTF8
   /* 中文列 = 码点数（token 索引） */
   LoadStr (M, "\xE4\xB8\xAD\xE6\x96\x87x");
   ASSERT_OK (ModelSetCursor (M, 0, 100));
   ASSERT_OK (ModelInfo (M, &Info));
   ASSERT_EQ (Info.CursorCol, 3);
-#else
-  printf ("  [note] T02-6 中文码点列子用例待真实 Utf8Lib（REAL_UTF8=1）\n");
-#endif
   ModelFree (M);
 }
 
@@ -513,7 +504,6 @@ TEST (t02_8_render) {
   ASSERT_OK (ModelRenderRow (M, 0, 0, 0, Cells));
   ASSERT_ERR (ModelRenderRow (M, 99, 0, 4, Cells));
   ASSERT_ERR (ModelRenderRow (M, 0, 0, 4, NULL));
-#ifdef S02_REAL_UTF8
   /* 中文每码点单格占位；Width 1 恰好 1 格（宽字符不越界） */
   LoadStr (M, "\xE4\xB8\xAD\xE6\x96\x87x");   /* 中文x */
   ASSERT_OK (ModelRenderRow (M, 0, 0, 3, Cells));
@@ -524,9 +514,6 @@ TEST (t02_8_render) {
   ASSERT_EQ (Cells[2].Char, (CHAR16)'x');
   ASSERT_OK (ModelRenderRow (M, 0, 1, 1, Cells));
   ASSERT_EQ (Cells[0].Char, TUI_NONASCII_CHAR);
-#else
-  printf ("  [note] T02-8 中文单格占位子用例待真实 Utf8Lib（REAL_UTF8=1）\n");
-#endif
   ModelFree (M);
 }
 
@@ -622,11 +609,7 @@ TEST (t02_10_alloc_pairing) {
 }
 
 int main (void) {
-#ifdef S02_REAL_UTF8
   printf ("== S02 EditorModelLib host tests (real Utf8Lib) ==\n");
-#else
-  printf ("== S02 EditorModelLib host tests (Utf8Shim: non-ASCII=RAW; CP subcases deferred) ==\n");
-#endif
   RUN_TEST (t02_1_roundtrip);
   RUN_TEST (t02_2_boundary_edit);
   RUN_TEST (t02_3_newline_convention);

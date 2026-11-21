@@ -9,9 +9,6 @@
 
 [Sources]
   EditorModel.c
-  ## 临时依赖垫片：S01 Utf8Lib 合并进 main 后删除本行（Utf8Lib 依赖保留）。
-  ## 见 Utf8Shim.c 头注与 docs/handoffs/S02.md。
-  Utf8Shim.c
 
 [Packages]
   MdePkg/MdePkg.dec

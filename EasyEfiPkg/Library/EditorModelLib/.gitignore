@@ -1,4 +1,3 @@
-# 宿主测试二进制与模式戳（不入库）
+# 宿主测试二进制与调试符号（不入库）
 tests/run-tests
-tests/.mode-*
 tests/*.dSYM/
