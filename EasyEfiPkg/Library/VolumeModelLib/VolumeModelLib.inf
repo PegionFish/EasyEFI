@@ -1,14 +1,14 @@
-## VolumeModelLib STUB（S00 脚手架；流负责人替换 Sources 为真实实现）
+## VolumeModelLib — GPT 设备路径纯逻辑（S05 实现；契约 Include/Contract/VolumeModel.h）
 [Defines]
   INF_VERSION    = 0x0001001b
   BASE_NAME      = VolumeModelLib
   FILE_GUID      = 98CA0838-8117-40F8-9722-0B45403FAB92
   MODULE_TYPE    = BASE
-  VERSION_STRING = 0.1
+  VERSION_STRING = 1.0
   LIBRARY_CLASS  = VolumeModelLib|UEFI_APPLICATION UEFI_DRIVER DXE_DRIVER
 
 [Sources]
-  VolumeModelLibStub.c
+  VolumeModel.c
 
 [Packages]
   MdePkg/MdePkg.dec

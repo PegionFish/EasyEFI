@@ -4,3 +4,4 @@
 
 [Components]
   EasyEfiPkg/Library/TuiInputLib/TuiInputLib.inf
+  EasyEfiPkg/Library/TuiInputLib/Test/TuiInputTest.inf
