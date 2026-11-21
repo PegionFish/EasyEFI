@@ -1,5 +1,7 @@
 /* S12 宿主测试：FileManager core（T12-1..11）。
- * MockTui（屏幕+按键）+ MockFs（双卷）+ MockExec（记录器）；core 纯状态机直驱。
+ * MockTui（屏幕+按键）+ MockExec（记录器）+ 双文件后端：
+ *   默认 MockFs（内存平面表）；-DUSE_POSIX_FS 切 S09 FsPosixBackend（真实临时目录，
+ *   任务书"POSIX 临时树"语义）。两后端各跑一遍 T12-1..11（host.mk 两个二进制）。
  * 运行：模块目录内 make -f host.mk test
  */
 #include "test.h"
@@ -8,9 +10,16 @@
 #include "MockExec.h"
 #include "../FmCore.h"
 
+#ifdef USE_POSIX_FS
+#include <unistd.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#endif
+
 /* ---------------- 夹具 ---------------- */
 
 static FS_OPS *g_fs0, *g_fs1;
+static CHAR8 g_root0[64], g_root1[64], g_root2[64];   /* POSIX 临时树根（MockFs 分支不用） */
 static VOLUME_INFO g_vols[3];
 static CONST CHAR16 *g_fsnames[3];
 static FM_INIT g_init;
@@ -19,6 +28,82 @@ static FM_PLATFORM_OPS g_ops;
 static CHAR16 g_fsname_buf[3][8];
 static CHAR16 g_editor_path[64];
 static CHAR16 g_shell_path[64];
+
+/* 后端创建/销毁（POSIX 分支递归清理临时树） */
+static FS_OPS *backend_new (CHAR8 *RootOut) {
+#ifdef USE_POSIX_FS
+  char tmpl[] = "/tmp/s12fm-XXXXXX";
+  char *d = mkdtemp (tmpl);
+  UINTN i;
+  if (d == NULL) return NULL;
+  for (i = 0; d[i] != 0 && i < 63; i++) RootOut[i] = d[i];
+  RootOut[i] = 0;
+  return FsPosixBackend (RootOut);
+#else
+  RootOut[0] = 0;
+  return MockFsNew ();
+#endif
+}
+
+#ifdef USE_POSIX_FS
+static void rm_tree (CONST CHAR8 *Root) {
+  DIR *d = opendir (Root);
+  struct dirent *e;
+  CHAR8 p[512];
+  struct stat sb;
+  if (d == NULL) return;
+  while ((e = readdir (d)) != NULL) {
+    UINTN i;
+    if (e->d_name[0] == '.' &&
+        (e->d_name[1] == 0 || (e->d_name[1] == '.' && e->d_name[2] == 0))) continue;
+    for (i = 0; Root[i] != 0 && i < 400; i++) p[i] = Root[i];
+    p[i++] = '/';
+    {
+      UINTN j;
+      for (j = 0; e->d_name[j] != 0 && i + j < 500; j++) p[i + j] = e->d_name[j];
+      p[i + j] = 0;
+    }
+    if (stat (p, &sb) == 0 && S_ISDIR (sb.st_mode)) rm_tree (p);
+    else unlink (p);
+  }
+  closedir (d);
+  rmdir (Root);
+}
+#endif
+
+static void backend_free (FS_OPS *Fs, CHAR8 *Root) {
+  if (Fs == NULL) return;
+  Fs->Destroy (Fs);
+#ifdef USE_POSIX_FS
+  if (Root[0] != 0) rm_tree (Root);
+#else
+  (void)Root;
+#endif
+}
+
+/* 播种：目录/文件（文件先 Delete 保证截断语义，两后端一致）。
+   MockFs 分支用 MockFsAddFile 绕过其 64KiB Write 上限（big.img 1MB 播种）。 */
+static void seed_dir (FS_OPS *Fs, CONST CHAR16 *Path) {
+#ifdef USE_POSIX_FS
+  Fs->MkDir (Fs, Path);
+#else
+  MockFsAddDir (Fs, Path);
+#endif
+}
+
+static void seed_file (FS_OPS *Fs, CONST CHAR16 *Path, CONST UINT8 *Data, UINTN Len) {
+#ifdef USE_POSIX_FS
+  FS_HANDLE *H = NULL;
+  UINTN w = Len;
+  Fs->Delete (Fs, Path);   /* 忽略结果：不存在亦正常 */
+  if (!EFI_ERROR (Fs->Open (Fs, Path, FS_MODE_WRITE | FS_MODE_CREATE, &H))) {
+    Fs->Write (Fs, H, Data, &w);
+    Fs->Close (Fs, H);
+  }
+#else
+  MockFsAddFile (Fs, Path, Data, Len);
+#endif
+}
 
 /* T12-4 读取量计数包装：委托 thunk（MockFs 函数把 FS_OPS* 当 MOCKFS* 容器首成员，
    不能拷贝 vtable 自立——必须转调内层指针） */
@@ -54,27 +139,27 @@ static void seed_volumes (void) {
   UINT8 bin[64];
   UINT8 *big;
   UINTN i;
-  g_fs0 = MockFsNew ();
-  g_fs1 = MockFsNew ();
-  MockFsAddDir (g_fs0, U16("EFI"));
-  MockFsAddDir (g_fs0, U16("EFI/Apps"));
+  g_fs0 = backend_new (g_root0);
+  g_fs1 = backend_new (g_root1);
+  seed_dir (g_fs0, U16("EFI"));
+  seed_dir (g_fs0, U16("EFI/Apps"));
   for (i = 0; i < sizeof (bin); i++) bin[i] = (UINT8)(i * 7);
   bin[0] = 0x4D; bin[1] = 0x5A; bin[2] = 0;      /* MZ + NUL → 二进制 */
-  MockFsAddFile (g_fs0, U16("EFI/Apps/Editor.efi"), bin, sizeof (bin));
-  MockFsAddFile (g_fs0, U16("startup.nsh"), (CONST UINT8 *)"echo hi", 7);
+  seed_file (g_fs0, U16("EFI/Apps/Editor.efi"), bin, sizeof (bin));
+  seed_file (g_fs0, U16("startup.nsh"), (CONST UINT8 *)"echo hi", 7);
 
-  MockFsAddDir (g_fs1, U16("scripts"));
-  MockFsAddDir (g_fs1, U16("scripts/sub"));
-  MockFsAddDir (g_fs1, U16("emptydir"));
-  MockFsAddFile (g_fs1, U16("scripts/fpt.nsh"),
-                 (CONST UINT8 *)"# \xe4\xb8\xad\xe6\x96\x87 comment\nfpt -f firmware.bin\n", 37);
-  MockFsAddFile (g_fs1, U16("scripts/sub/deep.nsh"), (CONST UINT8 *)"echo deep", 9);
-  MockFsAddFile (g_fs1, U16("firmware.bin"), bin, sizeof (bin));
-  MockFsAddFile (g_fs1, U16("readme.txt"), (CONST UINT8 *)"hello toolkit", 13);
+  seed_dir (g_fs1, U16("scripts"));
+  seed_dir (g_fs1, U16("scripts/sub"));
+  seed_dir (g_fs1, U16("emptydir"));
+  seed_file (g_fs1, U16("scripts/fpt.nsh"),
+             (CONST UINT8 *)"# \xe4\xb8\xad\xe6\x96\x87 comment\nfpt -f firmware.bin\n", 37);
+  seed_file (g_fs1, U16("scripts/sub/deep.nsh"), (CONST UINT8 *)"echo deep", 9);
+  seed_file (g_fs1, U16("firmware.bin"), bin, sizeof (bin));
+  seed_file (g_fs1, U16("readme.txt"), (CONST UINT8 *)"hello toolkit", 13);
   big = MemAlloc (1048576);
   for (i = 0; i < 1048576; i++) big[i] = (UINT8)(i & 0xFF);
   big[100] = 0;                                   /* NUL → 二进制 */
-  MockFsAddFile (g_fs1, U16("big.img"), big, 1048576);
+  seed_file (g_fs1, U16("big.img"), big, 1048576);
   MemFree (big);
 
   /* 卷 0 root 追加 30 个文件（视口钳制用） */
@@ -87,7 +172,7 @@ static void seed_volumes (void) {
     name[j++] = (CHAR16)('a' + i % 26);
     name[j++] = L'.'; name[j++] = L't'; name[j++] = L'x'; name[j++] = L't';
     name[j] = 0;
-    MockFsAddFile (g_fs0, name, (CONST UINT8 *)"x", 1);
+    seed_file (g_fs0, name, (CONST UINT8 *)"x", 1);
   }
 
   g_vols[0].Label[0] = 0;
@@ -216,8 +301,8 @@ TEST (t12_1_navigation) {
   ASSERT_EQ (FmCoreSelected (C), 0);
   ASSERT_OK (FmCoreDraw (C));
   FmCoreFree (C);
-  g_fs0->Destroy (g_fs0);
-  g_fs1->Destroy (g_fs1);
+  backend_free (g_fs0, g_root0);
+  backend_free (g_fs1, g_root1);
 }
 
 /* ---------------- T12-2 过滤 ---------------- */
@@ -251,8 +336,8 @@ TEST (t12_2_filter) {
   ASSERT_EQ (EfiStrCmp (FmCoreCwd (C), U16("scripts")), 0);
   ASSERT_EQ (FmCoreFilter (C)[0], 0);               /* 进入目录清过滤 */
   FmCoreFree (C);
-  g_fs0->Destroy (g_fs0);
-  g_fs1->Destroy (g_fs1);
+  backend_free (g_fs0, g_root0);
+  backend_free (g_fs1, g_root1);
 }
 
 /* ---------------- T12-3 递归搜索命中与跳转 ---------------- */
@@ -279,8 +364,8 @@ TEST (t12_3_search) {
   key (C, 0, 0x0D);
   ASSERT_EQ (FmCoreState (C), FM_STATE_MESSAGE);
   FmCoreFree (C);
-  g_fs0->Destroy (g_fs0);
-  g_fs1->Destroy (g_fs1);
+  backend_free (g_fs0, g_root0);
+  backend_free (g_fs1, g_root1);
 }
 
 /* ---------------- T12-4 预览 bounded（1MB 只读 16KiB） ---------------- */
@@ -304,8 +389,8 @@ TEST (t12_4_preview_bounded) {
   ASSERT_TRUE (FmCorePreviewBinary (C));
   g_vols[1].Fs = g_countinner;
   FmCoreFree (C);
-  g_fs0->Destroy (g_fs0);
-  g_fs1->Destroy (g_fs1);
+  backend_free (g_fs0, g_root0);
+  backend_free (g_fs1, g_root1);
 }
 
 /* ---------------- T12-5 二进制 hex 头渲染 ---------------- */
@@ -322,8 +407,8 @@ TEST (t12_5_hex_preview) {
   ASSERT_OK (FmCoreDraw (C));
   ASSERT_TRUE (screen_has (U16("F3:text")));
   FmCoreFree (C);
-  g_fs0->Destroy (g_fs0);
-  g_fs1->Destroy (g_fs1);
+  backend_free (g_fs0, g_root0);
+  backend_free (g_fs1, g_root1);
 }
 
 /* ---------------- T12-6 执行确认含全路径+大小 ---------------- */
@@ -364,8 +449,8 @@ TEST (t12_6_exec_confirm) {
   ASSERT_EQ (MockExecCall (1)->Kind, 1);
   ASSERT_EQ (EfiStrCmp (MockExecCall (1)->Path, U16("fs0:/EFI/Apps/Editor.efi")), 0);
   FmCoreFree (C);
-  g_fs0->Destroy (g_fs0);
-  g_fs1->Destroy (g_fs1);
+  backend_free (g_fs0, g_root0);
+  backend_free (g_fs1, g_root1);
 }
 
 /* ---------------- T12-7 复制/覆盖/改名/删除/mkdir/新建 ---------------- */
@@ -384,7 +469,7 @@ TEST (t12_7_file_ops) {
   ch (C, L' ');                                     /* 任意键回 DIR */
   ASSERT_EQ (FmCoreState (C), FM_STATE_DIR);
   /* 覆盖确认：源改短 → 覆盖后目标必须截断 */
-  MockFsAddFile (g_fs1, U16("readme.txt"), (CONST UINT8 *)"short", 5);
+  seed_file (g_fs1, U16("readme.txt"), (CONST UINT8 *)"short", 5);
   select_name (C, U16("readme.txt"));               /* 回 DIR 后 Sel 在卷选择器位置，须重选 */
   key (C, SCAN_F5, 0);
   key (C, SCAN_UP, 0);
@@ -445,8 +530,8 @@ TEST (t12_7_file_ops) {
   ASSERT_EQ (FmCoreState (C), FM_STATE_MESSAGE);
   ASSERT_TRUE (find_view (C, U16("scripts")) != (UINTN)-1);
   FmCoreFree (C);
-  g_fs0->Destroy (g_fs0);
-  g_fs1->Destroy (g_fs1);
+  backend_free (g_fs0, g_root0);
+  backend_free (g_fs1, g_root1);
 }
 
 /* ---------------- T12-8 F4 文本→Editor 参数 / 二进制拒绝 ---------------- */
@@ -469,8 +554,8 @@ TEST (t12_8_f4_edit) {
   ASSERT_OK (FmCoreDraw (C));
   ASSERT_TRUE (screen_has (U16("Binary")));
   FmCoreFree (C);
-  g_fs0->Destroy (g_fs0);
-  g_fs1->Destroy (g_fs1);
+  backend_free (g_fs0, g_root0);
+  backend_free (g_fs1, g_root1);
 }
 
 /* ---------------- T12-9 卷切换（每卷 cwd 保持） ---------------- */
@@ -490,8 +575,8 @@ TEST (t12_9_volume_switch) {
   ASSERT_EQ (FmCoreVolIndex (C), 1);
   ASSERT_EQ (EfiStrCmp (FmCoreCwd (C), U16("scripts")), 0);
   FmCoreFree (C);
-  g_fs0->Destroy (g_fs0);
-  g_fs1->Destroy (g_fs1);
+  backend_free (g_fs0, g_root0);
+  backend_free (g_fs1, g_root1);
 }
 
 /* ---------------- T12-10 80x25 布局快照 ---------------- */
@@ -524,14 +609,14 @@ TEST (t12_10_layout) {
   ASSERT_EQ (MockTuiGetCell (23, 0).Attr, TUI_ATTR_STATUSBAR);
   ASSERT_EQ (MockTuiGetCell (24, 0).Attr, TUI_ATTR_KEYBAR);
   FmCoreFree (C);
-  g_fs0->Destroy (g_fs0);
-  g_fs1->Destroy (g_fs1);
+  backend_free (g_fs0, g_root0);
+  backend_free (g_fs1, g_root1);
 }
 
 /* ---------------- T12-11 刷新后外部新增可见 + Rescan 卷数变化 ---------------- */
 static EFI_STATUS rescan_add_vol (VOID *Ctx) {
-  FS_OPS *fs2 = MockFsNew ();
-  MockFsAddFile (fs2, U16("extra.txt"), (CONST UINT8 *)"e", 1);
+  FS_OPS *fs2 = backend_new (g_root2);
+  seed_file (fs2, U16("extra.txt"), (CONST UINT8 *)"e", 1);
   str_copy_label (g_vols[2].Label, U16("USBSTICK"));
   str_copy_label (g_vols[2].FsName, U16("FAT32"));
   g_vols[2].Capacity = 1024 * 1024;
@@ -548,7 +633,7 @@ static EFI_STATUS rescan_add_vol (VOID *Ctx) {
 TEST (t12_11_refresh) {
   FM_CORE *C = new_core ();
   ASSERT_TRUE (find_view (C, U16("added.txt")) == (UINTN)-1);
-  MockFsAddFile (g_fs1, U16("added.txt"), (CONST UINT8 *)"new", 3);
+  seed_file (g_fs1, U16("added.txt"), (CONST UINT8 *)"new", 3);
   ch (C, L'r');                                     /* 刷新重读 */
   ASSERT_TRUE (find_view (C, U16("added.txt")) != (UINTN)-1);
   /* Rescan 回调：卷数 2→3，cwd 数组同步不越界 */
@@ -568,9 +653,9 @@ TEST (t12_11_refresh) {
   key (C, SCAN_F10, 0);
   ASSERT_TRUE (FmCoreExit (C));
   FmCoreFree (C);
-  g_fs0->Destroy (g_fs0);
-  g_fs1->Destroy (g_fs1);
-  g_vols[2].Fs->Destroy (g_vols[2].Fs);
+  backend_free (g_fs0, g_root0);
+  backend_free (g_fs1, g_root1);
+  backend_free (g_vols[2].Fs, g_root2);
 }
 
 int main (void) {
