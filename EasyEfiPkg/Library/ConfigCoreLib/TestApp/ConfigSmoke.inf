@@ -1,0 +1,44 @@
+## S03 QEMU 冒烟应用：FAT 读好/坏/语法错 JSON → JsonDomFromEdk2 → ConfigValidate → serial 标记
+## 经 ConfigCoreLib/module.dsc.inc [Components] 接入平台构建。
+[Defines]
+  INF_VERSION    = 0x0001001b
+  BASE_NAME      = ConfigSmoke
+  FILE_GUID      = 594440B7-6F03-4E6E-B873-7EEE6DB673A9
+  MODULE_TYPE    = UEFI_APPLICATION
+  VERSION_STRING = 1.0
+  ENTRY_POINT    = UefiMain
+
+[Sources]
+  ConfigSmoke.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  RedfishPkg/RedfishPkg.dec
+  EasyEfiPkg/EasyEfiPkg.dec
+
+[LibraryClasses]
+  UefiApplicationEntryPoint
+  UefiLib
+  UefiBootServicesTableLib
+  BaseLib
+  BaseMemoryLib
+  MemoryAllocationLib
+  PrintLib
+  EfiCompatLib
+  ConfigCoreLib
+  ExecPathLib
+  JsonLib
+  PcdLib
+
+[Protocols]
+  gEfiSimpleFileSystemProtocolGuid
+
+[Guids]
+  gEfiFileInfoGuid
+
+[Pcd]
+  # DOM 规范 dumps 单行 ~1.4KB，超过 AsciiPrint 默认 320 缓冲 → 模块级放宽
+  gEfiMdePkgTokenSpaceGuid.PcdUefiLibMaxPrintBufferSize|4096
+
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = -DUEFI_BUILD

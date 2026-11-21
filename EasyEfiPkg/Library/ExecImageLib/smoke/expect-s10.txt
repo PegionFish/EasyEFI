@@ -1,0 +1,17 @@
+# S10 冒烟 serial 存在性断言（qemu-run.sh --expect；每行一个 grep -E 模式）。
+# 计数断言（标记恰好 1 次等）由 run-smoke.sh 在日志上执行。
+# 递归守卫：DONE 只在嵌套 Shell 正常返回后可达；若 startup.nsh 递归，
+# 应用实例无限嵌套，DONE 与 NSH-OK PASS 永不出现 → 超时 FAIL。
+\[S10\] smoke start arch=
+\[S10\] volumes=[0-9]+ boot-found
+\[S10-TARGET\] ran arch=
+\[S10-TARGET\] opts=hello options
+\[S10-TARGET\] mode-changed
+\[S10\] EFI-CAPTURE PASS
+\[S10\] MODE-RESTORE PASS
+\[S10\] nsh script=FS[0-9]+:\\s10test\.nsh
+\[S10-NSH\] marker
+\[S10\] NSH-OK PASS
+\[S10\] AUTO n=[0-9]+ boot-excluded PASS
+\[S10\] AUTO-NONE PASS
+\[S10\] DONE

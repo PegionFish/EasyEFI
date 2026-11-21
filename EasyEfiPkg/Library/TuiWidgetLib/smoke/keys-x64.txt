@@ -1,0 +1,19 @@
+# S08 QMP 按键注入（x64/TCG 启动慢）。
+# 首键 75s：TCG 模拟启动到 Shell 倒计时结束通常 <60s；晚到的键在 ConIn 排队不丢。
+# 序列与 Test/TuiWidgetTest.c 的 mExpectedSel 及 smoke/expect.txt 一致。
+75 down
+76 down
+77 down
+78 up
+79 5
+80 2
+81 home
+82 end
+83 y
+84 ret
+85 esc
+86 a
+87 b
+88 c
+89 backspace
+90 ret

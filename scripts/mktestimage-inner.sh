@@ -11,7 +11,8 @@ sgdisk -Z "$OUT" >/dev/null
 if [[ "$VARIANT" == fat ]]; then
   sgdisk -n 1:1M:0 -t 1:EF00 -c 1:TESTESP "$OUT" >/dev/null
 else
-  sgdisk -n 1:1M:+64M -t 1:EF00 -c 1:TESTESP -n 2:0:0 -t 2:0700 -c 2:TOOLKIT "$OUT" >/dev/null
+  # 设计布局：P1 ESP(x64) + P2 ESP(AA64) + P3 NTFS 数据区（VolFindP3 按分区号 3 匹配）
+  sgdisk -n 1:1M:+64M -t 1:EF00 -c 1:TESTESP -n 2:0:+64M -t 2:EF00 -c 2:TESTESP2 -n 3:0:0 -t 3:0700 -c 3:TOOLKIT "$OUT" >/dev/null
 fi
 # 解析分区起止扇区（512B）
 readarray -t PARTS < <(sgdisk -p "$OUT" | awk '/^ +[0-9]+ +[0-9]+/ {print $2, $3}')
@@ -36,9 +37,9 @@ done <<< "$APPS"
 if [[ "$VARIANT" == ntfs ]]; then
   [[ -n "$DRIVER" ]] || { echo "ntfs variant needs --driver"; exit 2; }
   cp "$DRIVER" /mnt/p1/EFI/Drivers/ntfs.efi
-  p2_start=${PARTS[1]%% *}; p2_end=${PARTS[1]##* }
-  P2_OFF=$((p2_start * 512)); P2_LEN=$(( (p2_end - p2_start + 1) * 512 ))
-  LOOP2=$(losetup -f --show -o "$P2_OFF" --sizelimit "$P2_LEN" "$OUT")
+  p3_start=${PARTS[2]%% *}; p3_end=${PARTS[2]##* }
+  P3_OFF=$((p3_start * 512)); P3_LEN=$(( (p3_end - p3_start + 1) * 512 ))
+  LOOP2=$(losetup -f --show -o "$P3_OFF" --sizelimit "$P3_LEN" "$OUT")
   mkfs.ntfs -f -L TOOLKIT "$LOOP2" >/dev/null
   mkdir -p /mnt/p3
   mount -t ntfs-3g "$LOOP2" /mnt/p3
@@ -53,7 +54,7 @@ elif [[ -n "$FIRST_APP" ]]; then
   {
     echo "echo -off"
     if [[ "$VARIANT" == ntfs ]]; then
-      echo "load EFI\\Drivers\\ntfs.efi"
+      echo "load %homefilesystem%\\EFI\\Drivers\\ntfs.efi"
       echo "map -r"
     fi
     echo "EFI\\Apps\\${FIRST_APP}.efi"

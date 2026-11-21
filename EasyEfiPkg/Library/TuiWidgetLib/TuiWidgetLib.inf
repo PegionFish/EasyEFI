@@ -1,14 +1,14 @@
-## TuiWidgetLib STUB（S00 脚手架；流负责人替换 Sources 为真实实现）
+## TuiWidgetLib — 共享控件（S08 实现；契约 Include/Contract/TuiWidget.h）
 [Defines]
   INF_VERSION    = 0x0001001b
   BASE_NAME      = TuiWidgetLib
   FILE_GUID      = FB4D0CE4-E7CC-4CFB-A933-A4757846B78D
   MODULE_TYPE    = BASE
-  VERSION_STRING = 0.1
+  VERSION_STRING = 1.0
   LIBRARY_CLASS  = TuiWidgetLib|UEFI_APPLICATION UEFI_DRIVER DXE_DRIVER
 
 [Sources]
-  TuiWidgetLibStub.c
+  TuiWidget.c
 
 [Packages]
   MdePkg/MdePkg.dec
@@ -16,6 +16,8 @@
 
 [LibraryClasses]
   EfiCompatLib
+  TuiScreenLib
+  TuiInputLib
 
 [BuildOptions]
   GCC:*_*_*_CC_FLAGS = -DUEFI_BUILD

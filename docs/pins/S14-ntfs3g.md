@@ -43,6 +43,9 @@
   （mktestimage ntfs 变体 + qemu-run serial 断言；断言文件 expect-ntfs-{x64,aa64}.txt）
 - startup.nsh：`load %homefilesystem%\EFI\Drivers\ntfs.efi`（design §3.3 形式）。
   **实测坑**：mktestimage 默认 startup 的裸相对路径 `load EFI\Drivers\ntfs.efi` 报
-  "File not found"（Shell `load` 经 ShellOpenFileMetaArg 解析相对路径失败；文件确在 ESP 上），
-  必须 fs 限定绝对路径。S15 引导脚本务必沿用 %homefilesystem% 形式。
+  "File not found"（文件确在 ESP 上）。机制：`load`→EfiShellOpenFileList 相对路径要求
+  GetCurDir(NULL) 非空，否则 EFI_NOT_FOUND；应用执行走 ShellFindFilePathEx 不受此限。
+  主 Shell startup 上下文用 %homefilesystem% 绝对路径；裸相对 load 仅在 CurDir 已设置时可靠。
+  S15 compat 嵌套 Shell 脚本（无 homefilesystem）用裸相对 load，需实证 CurDir 状态，
+  详见 docs/handoffs/S14.md 集成注意事项 1。
 - 结果：见 `docs/handoffs/S14.md` 测试证据节（serial 日志随冒烟目录提交）。
