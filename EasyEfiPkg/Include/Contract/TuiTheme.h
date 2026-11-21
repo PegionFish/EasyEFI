@@ -26,9 +26,12 @@
 #define TUI_FG_WHITE        0x0F
 #define TUI_BG(C)           ((C) << 4)
 
-/* 语义属性（design §5.5：高亮=选中，红=危险/错误，灰=不可用） */
+/* 语义属性（design §5.5：高亮=选中，红=危险/错误，灰=不可用）
+   约束：背景色只能用非 light 值（TUI_FG_BLACK..TUI_FG_LIGHTGRAY 的低 8 色，0x00-0x07），
+   属性字节须 ≤0x7F——bit7 保留，固件 SetAttribute 对 >0x7F 返回 EFI_UNSUPPORTED。
+   （S08 实证：LIGHTCYAN 背景=0xB0 含 bit7 → 选中行高亮不输出；改用 CYAN 背景=0x30。） */
 #define TUI_ATTR_NORMAL     (TUI_FG_LIGHTGRAY | TUI_BG(TUI_FG_BLACK))
-#define TUI_ATTR_SELECTED   (TUI_FG_BLACK     | TUI_BG(TUI_FG_LIGHTCYAN))
+#define TUI_ATTR_SELECTED   (TUI_FG_BLACK     | TUI_BG(TUI_FG_CYAN))
 #define TUI_ATTR_DANGER     (TUI_FG_LIGHTRED  | TUI_BG(TUI_FG_BLACK))
 #define TUI_ATTR_DISABLED   (TUI_FG_DARKGRAY  | TUI_BG(TUI_FG_BLACK))
 #define TUI_ATTR_NONASCII   (TUI_FG_YELLOW    | TUI_BG(TUI_FG_BLACK))

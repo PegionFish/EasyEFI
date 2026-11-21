@@ -1,0 +1,7 @@
+# S09 ntfs 变体冒烟断言（严格三分区镜像；qemu-run.sh --expect）
+\[S09\] boot-dp: .*HD\(
+\[S09\] volumes=[2-9][0-9]*
+\[S09\] vol[0-9]+ .*fs=NTFS.*isP3=1
+\[S09\] findp3=Success
+\[S09\] P3-FOUND fs=NTFS
+\[S09\] NTFS-SMOKE PASS

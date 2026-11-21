@@ -71,36 +71,99 @@ PathToUefi (
   return EFI_SUCCESS;
 }
 
-/** 两段式 GetInfo：先问尺寸再取内容（callee 分配）。 */
-STATIC
+/**
+  健壮 GetInfo（见 ExecVolumeInternal.h 注释）：非零起始缓冲 + 有界重试。
+  收敛路径：
+    - 标准驱动（FAT）：缓冲不足 → TOO_SMALL + 所需尺寸 → 扩到所需 → 成功；
+    - EfiFs：缓冲偏大 → TOO_SMALL + 精确尺寸 → 缩到精确 → 成功；
+    - 尺寸不回写（sz 不变/0）→ 倍增重试，上限 5 轮报错（不死循环）。
+**/
 EFI_STATUS
-GetInfoAlloc (
+UefiGetInfoRobust (
   EFI_FILE_PROTOCOL *File,
   EFI_GUID          *Guid,
   VOID              **Buf,
   UINTN             *Size
   )
 {
-  UINTN      sz = 0;
-  VOID       *b;
+  UINTN      alloc = SIZE_OF_EFI_FILE_INFO + 512;
+  UINTN      sz, need, tries;
+  VOID       *b, *nb;
   EFI_STATUS st;
 
-  st = File->GetInfo (File, Guid, &sz, NULL);
-  if (st != EFI_BUFFER_TOO_SMALL) {
-    return EFI_ERROR (st) ? st : EFI_DEVICE_ERROR;
-  }
-  b = MemAlloc (sz);
+  b = MemAlloc (alloc);
   if (b == NULL) {
     return EFI_OUT_OF_RESOURCES;
   }
-  st = File->GetInfo (File, Guid, &sz, b);
-  if (EFI_ERROR (st)) {
-    MemFree (b);
-    return st;
+  for (tries = 0; tries < 5; tries++) {
+    sz = alloc;
+    st = File->GetInfo (File, Guid, &sz, b);
+    if (!EFI_ERROR (st)) {
+      *Buf  = b;
+      *Size = sz;
+      return EFI_SUCCESS;
+    }
+    if (st != EFI_BUFFER_TOO_SMALL) {
+      MemFree (b);
+      return st;
+    }
+    need = (sz != 0 && sz != alloc) ? sz : alloc * 2;
+    nb = MemRealloc (b, need);
+    if (nb == NULL) {
+      MemFree (b);
+      return EFI_OUT_OF_RESOURCES;
+    }
+    b     = nb;
+    alloc = need;
   }
-  *Buf  = b;
-  *Size = sz;
-  return EFI_SUCCESS;
+  MemFree (b);
+  return EFI_DEVICE_ERROR;
+}
+
+/**
+  迭代 Read 取下一目录条目（健壮尺寸协商，兼容 FAT/EfiFs）。
+  *Buf 持久缓冲（入/出，callee 首次分配，调用方收尾 MemFree）；*Alloc 为其容量。
+  成功且 *Info!=NULL：一条目；成功且 *Info==NULL：遍历结束；错误经返回值。
+**/
+STATIC
+EFI_STATUS
+ReadDirEntry (
+  EFI_FILE_PROTOCOL *Dir,
+  EFI_FILE_INFO     **Info,
+  VOID              **Buf,
+  UINTN             *Alloc
+  )
+{
+  UINTN      sz, need, tries;
+  VOID       *nb;
+  EFI_STATUS st;
+
+  if (*Buf == NULL) {
+    *Alloc = SIZE_OF_EFI_FILE_INFO + 512;
+    *Buf   = MemAlloc (*Alloc);
+    if (*Buf == NULL) {
+      return EFI_OUT_OF_RESOURCES;
+    }
+  }
+  for (tries = 0; tries < 5; tries++) {
+    sz = *Alloc;
+    st = Dir->Read (Dir, &sz, *Buf);
+    if (!EFI_ERROR (st)) {
+      *Info = (sz == 0) ? NULL : (EFI_FILE_INFO *)*Buf;
+      return EFI_SUCCESS;
+    }
+    if (st != EFI_BUFFER_TOO_SMALL) {
+      return st;
+    }
+    need = (sz != 0 && sz != *Alloc) ? sz : *Alloc * 2;
+    nb = MemRealloc (*Buf, need);
+    if (nb == NULL) {
+      return EFI_OUT_OF_RESOURCES;
+    }
+    *Buf   = nb;
+    *Alloc = need;
+  }
+  return EFI_DEVICE_ERROR;
 }
 
 /** EFI_TIME → Unix 秒（days-from-civil；无效/1970 前 → 0）。 */
@@ -151,39 +214,26 @@ DirHasChildren (
   )
 {
   EFI_STATUS    st;
-  UINTN         sz;
   EFI_FILE_INFO *info;
+  VOID          *buf = NULL;
+  UINTN         alloc = 0;
   BOOLEAN       has = FALSE;
 
   for (;;) {
-    sz = 0;
-    st = Dir->Read (Dir, &sz, NULL);
-    if (st == EFI_BUFFER_TOO_SMALL) {
-      info = (EFI_FILE_INFO *)MemAlloc (sz);
-      if (info == NULL) {
-        return EFI_OUT_OF_RESOURCES;
-      }
-      st = Dir->Read (Dir, &sz, info);
-      if (EFI_ERROR (st)) {
-        MemFree (info);
-        return st;
-      }
-      if (sz == 0) {
-        MemFree (info);
-        break;                      /* 目录遍历结束 */
-      }
-      if (!IsDotName (info->FileName)) {
-        has = TRUE;
-        MemFree (info);
-        break;
-      }
-      MemFree (info);
-    } else if (!EFI_ERROR (st) && sz == 0) {
+    st = ReadDirEntry (Dir, &info, &buf, &alloc);
+    if (EFI_ERROR (st)) {
+      MemFree (buf);
+      return st;
+    }
+    if (info == NULL) {
+      break;                        /* 目录遍历结束 */
+    }
+    if (!IsDotName (info->FileName)) {
+      has = TRUE;
       break;
-    } else {
-      return EFI_ERROR (st) ? st : EFI_DEVICE_ERROR;
     }
   }
+  MemFree (buf);
   *Has = has;
   return EFI_SUCCESS;
 }
@@ -249,7 +299,7 @@ uOpen (
     return st;
   }
   /* 目录拒绝（对齐 mock）：取 FileInfo 判属性 */
-  st = GetInfoAlloc (h->File, &gEfiFileInfoGuid, (VOID **)&info, &sz);
+  st = UefiGetInfoRobust (h->File, &gEfiFileInfoGuid, (VOID **)&info, &sz);
   if (EFI_ERROR (st)) {
     h->File->Close (h->File);
     MemFree (h);
@@ -364,12 +414,15 @@ uDelete (
     MemFree (upath);
     return EFI_INVALID_PARAMETER;   /* 卷根不可删 */
   }
-  st = F->Root->Open (F->Root, &file, upath, EFI_FILE_MODE_READ, 0);
+  /* 必须 READ|WRITE：FatDelete 拒绝 ReadOnly 句柄（IFile->ReadOnly →
+   * EFI_WRITE_PROTECTED → EFI_WARN_DELETE_FAILURE，文件不会被删）。
+   * 目录亦可以 WRITE 模式打开（FAT 只读属性检查排除目录）。 */
+  st = F->Root->Open (F->Root, &file, upath, EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE, 0);
   MemFree (upath);
   if (EFI_ERROR (st)) {
     return st;
   }
-  st = GetInfoAlloc (file, &gEfiFileInfoGuid, (VOID **)&info, &sz);
+  st = UefiGetInfoRobust (file, &gEfiFileInfoGuid, (VOID **)&info, &sz);
   if (EFI_ERROR (st)) {
     file->Close (file);
     return st;
@@ -389,9 +442,13 @@ uDelete (
   } else {
     MemFree (info);
   }
-  st = file->Delete (file);         /* 成功即关闭句柄 */
-  if (EFI_ERROR (st)) {
-    file->Close (file);
+  /* 协议语义：Delete 无论成败都关闭句柄（"Close and delete the file handle"），
+   * 不可再 Close。edk2-stable202608 起警告码不带 MAX_BIT（ENCODE_WARNING=x），
+   * EFI_ERROR(EFI_WARN_DELETE_FAILURE)==FALSE —— 必须显式转错误，
+   * 否则调用方误判删除成功。 */
+  st = file->Delete (file);
+  if (st == EFI_WARN_DELETE_FAILURE) {
+    st = EFI_DEVICE_ERROR;
   }
   return st;
 }
@@ -429,6 +486,56 @@ SplitPath (
   *Parent = p;
 }
 
+/** 以给定 FileName 构造 EFI_FILE_INFO 并 SetInfo（保留尺寸/时间/属性）。 */
+STATIC
+EFI_STATUS
+RenameApply (
+  EFI_FILE_PROTOCOL *File,
+  EFI_FILE_INFO     *Info,
+  CONST CHAR16      *Name
+  )
+{
+  EFI_FILE_INFO *set;
+  UINTN         nameLen = EfiStrLen (Name);
+  UINTN         setSz   = SIZE_OF_EFI_FILE_INFO + (nameLen + 1) * sizeof (CHAR16);
+  EFI_STATUS    st;
+
+  set = (EFI_FILE_INFO *)MemAlloc (setSz);
+  if (set == NULL) {
+    return EFI_OUT_OF_RESOURCES;
+  }
+  set->Size         = setSz;
+  set->FileSize     = Info->FileSize;
+  set->PhysicalSize = Info->PhysicalSize;
+  CopyMem (&set->CreateTime, &Info->CreateTime, sizeof (EFI_TIME));
+  CopyMem (&set->LastAccessTime, &Info->LastAccessTime, sizeof (EFI_TIME));
+  CopyMem (&set->ModificationTime, &Info->ModificationTime, sizeof (EFI_TIME));
+  set->Attribute = Info->Attribute;
+  CopyMem (set->FileName, Name, (nameLen + 1) * sizeof (CHAR16));
+  st = File->SetInfo (File, &gEfiFileInfoGuid, setSz, set);
+  MemFree (set);
+  return st;
+}
+
+/** 探测路径是否存在：存在 → EFI_SUCCESS（即开即关）；不存在 → EFI_NOT_FOUND。 */
+STATIC
+EFI_STATUS
+ProbePath (
+  UEFI_FS  *F,
+  CHAR16   *UPath
+  )
+{
+  EFI_FILE_PROTOCOL *p = NULL;
+  EFI_STATUS        st;
+
+  st = F->Root->Open (F->Root, &p, UPath, EFI_FILE_MODE_READ, 0);
+  if (!EFI_ERROR (st)) {
+    p->Close (p);
+    return EFI_SUCCESS;
+  }
+  return st;
+}
+
 STATIC
 EFI_STATUS
 uRename (
@@ -441,10 +548,11 @@ uRename (
   CHAR16            *normO = NULL, *normN = NULL;
   CHAR16            *upathO = NULL, *upathN = NULL;
   CHAR16            *parentO = NULL, *parentN = NULL;
+  CHAR16            *absName = NULL;
   CONST CHAR16      *baseO, *baseN;
-  EFI_FILE_PROTOCOL *file = NULL, *probe = NULL;
-  EFI_FILE_INFO     *info = NULL, *set = NULL;
-  UINTN             sz, baseLen, setSz;
+  EFI_FILE_PROTOCOL *file = NULL;
+  EFI_FILE_INFO     *info = NULL;
+  UINTN             sz, plen, blen, k;
   EFI_STATUS        st;
 
   st = FsNormalizePath (Old, &normO);
@@ -468,7 +576,7 @@ uRename (
     goto Done;
   }
   if (EfiStrCmp (parentO, parentN) != 0) {
-    st = EFI_UNSUPPORTED;           /* SetInfo 改名相对父目录，不支持跨目录 */
+    st = EFI_UNSUPPORTED;           /* 跨目录改名：FAT SetInfo 不支持（MVP 冻结） */
     goto Done;
   }
   /* 目标已存在拒绝（对齐 mock） */
@@ -476,14 +584,10 @@ uRename (
   if (EFI_ERROR (st)) {
     goto Done;
   }
-  st = F->Root->Open (F->Root, &probe, upathN, EFI_FILE_MODE_READ, 0);
-  if (!EFI_ERROR (st)) {
-    probe->Close (probe);
-    st = EFI_ACCESS_DENIED;
-    goto Done;
-  }
+  st = ProbePath (F, upathN);
   if (st != EFI_NOT_FOUND) {
-    goto Done;                      /* 其它错误（如父目录缺失）原样上报 */
+    st = (st == EFI_SUCCESS) ? EFI_ACCESS_DENIED : st;
+    goto Done;
   }
   st = PathToUefi (Old, &upathO);
   if (EFI_ERROR (st)) {
@@ -493,32 +597,58 @@ uRename (
   if (EFI_ERROR (st)) {
     goto Done;
   }
-  st = GetInfoAlloc (file, &gEfiFileInfoGuid, (VOID **)&info, &sz);
+  st = UefiGetInfoRobust (file, &gEfiFileInfoGuid, (VOID **)&info, &sz);
   if (EFI_ERROR (st)) {
     goto Done;
   }
-  baseLen = EfiStrLen (baseN);
-  setSz   = SIZE_OF_EFI_FILE_INFO + (baseLen + 1) * sizeof (CHAR16);
-  set = (EFI_FILE_INFO *)MemAlloc (setSz);
-  if (set == NULL) {
+  /* SetInfo 改名两种驱动语义（实证）：
+   *   FAT（FatSetFileInfo）：FileName = 相对父目录的新基名；
+   *   EfiFs/ntfs-3g（NtfsSetFileInfo）：FileName 须为卷根绝对路径才改名，
+   *     基名被静默忽略且返回 SUCCESS（S14 零补丁上游行为）。
+   * 策略：先基名 → 验证新名存在；未生效则绝对路径重试 → 再验证；
+   * 仍未生效 → EFI_DEVICE_ERROR（不信任未生效的 SUCCESS）。 */
+  st = RenameApply (file, info, baseN);
+  if (EFI_ERROR (st)) {
+    goto Done;
+  }
+  st = ProbePath (F, upathN);
+  if (st != EFI_NOT_FOUND) {
+    goto Done;                      /* SUCCESS=已生效；其它错误原样上报 */
+  }
+  plen    = EfiStrLen (parentN);
+  blen    = EfiStrLen (baseN);
+  absName = (CHAR16 *)MemAlloc ((plen + blen + 3) * sizeof (CHAR16));
+  if (absName == NULL) {
     st = EFI_OUT_OF_RESOURCES;
     goto Done;
   }
-  set->Size         = setSz;
-  set->FileSize     = info->FileSize;
-  set->PhysicalSize = info->PhysicalSize;
-  CopyMem (&set->CreateTime, &info->CreateTime, sizeof (EFI_TIME));
-  CopyMem (&set->LastAccessTime, &info->LastAccessTime, sizeof (EFI_TIME));
-  CopyMem (&set->ModificationTime, &info->ModificationTime, sizeof (EFI_TIME));
-  set->Attribute = info->Attribute;
-  CopyMem (set->FileName, baseN, (baseLen + 1) * sizeof (CHAR16));
-  st = file->SetInfo (file, &gEfiFileInfoGuid, setSz, set);
+  absName[0] = (CHAR16)'\\';
+  if (plen != 0) {
+    CopyMem (absName + 1, parentN, plen * sizeof (CHAR16));
+    absName[plen + 1] = (CHAR16)'\\';
+    CopyMem (absName + plen + 2, baseN, (blen + 1) * sizeof (CHAR16));
+  } else {
+    CopyMem (absName + 1, baseN, (blen + 1) * sizeof (CHAR16));
+  }
+  for (k = 0; absName[k] != 0; k++) {
+    if (absName[k] == (CHAR16)'/') {
+      absName[k] = (CHAR16)'\\';
+    }
+  }
+  st = RenameApply (file, info, absName);
+  if (EFI_ERROR (st)) {
+    goto Done;
+  }
+  st = ProbePath (F, upathN);
+  if (st == EFI_NOT_FOUND) {
+    st = EFI_DEVICE_ERROR;          /* 两种形式都未生效 */
+  }
 
 Done:
   if (file != NULL) {
     file->Close (file);
   }
-  MemFree (set);
+  MemFree (absName);
   MemFree (info);
   MemFree (upathO);
   MemFree (upathN);
@@ -596,8 +726,10 @@ uEnum (
   CHAR16            *upath = NULL;
   EFI_FILE_PROTOCOL *dir = NULL;
   EFI_FILE_INFO     *info;
+  VOID              *rbuf = NULL;
+  UINTN             ralloc = 0;
   FS_ENTRY          *out = NULL;
-  UINTN             n = 0, cap = 0, sz, i, j;
+  UINTN             n = 0, cap = 0, i, j;
   EFI_STATUS        st;
 
   if (Entries == NULL || Count == NULL) {
@@ -621,55 +753,38 @@ uEnum (
     return st;
   }
   for (;;) {
-    sz = 0;
-    st = dir->Read (dir, &sz, NULL);
-    if (st == EFI_BUFFER_TOO_SMALL) {
-      info = (EFI_FILE_INFO *)MemAlloc (sz);
-      if (info == NULL) {
-        st = EFI_OUT_OF_RESOURCES;
-        break;
-      }
-      st = dir->Read (dir, &sz, info);
-      if (EFI_ERROR (st)) {
-        MemFree (info);
-        break;
-      }
-      if (sz == 0) {
-        MemFree (info);
-        break;                      /* 遍历结束 */
-      }
-      if (!IsDotName (info->FileName)) {
-        FS_ENTRY e;
-        UINTN    k;
-        ZeroMem (&e, sizeof (e));
-        for (k = 0; info->FileName[k] != 0 && k < 255; k++) {
-          e.Name[k] = info->FileName[k];
-        }
-        e.Name[k] = 0;
-        e.IsDir = (BOOLEAN)((info->Attribute & EFI_FILE_DIRECTORY) != 0);
-        e.Size  = e.IsDir ? 0 : info->FileSize;
-        e.Mtime = EfiTimeToUnix (&info->ModificationTime);
-        if (n == cap) {
-          UINTN    ncap = cap ? cap * 2 : 16;
-          FS_ENTRY *nb = (FS_ENTRY *)MemRealloc (out, ncap * sizeof (FS_ENTRY));
-          if (nb == NULL) {
-            MemFree (info);
-            st = EFI_OUT_OF_RESOURCES;
-            break;
-          }
-          out = nb;
-          cap = ncap;
-        }
-        out[n++] = e;
-      }
-      MemFree (info);
-    } else if (!EFI_ERROR (st) && sz == 0) {
-      break;
-    } else {
-      st = EFI_ERROR (st) ? st : EFI_DEVICE_ERROR;
+    st = ReadDirEntry (dir, &info, &rbuf, &ralloc);
+    if (EFI_ERROR (st)) {
       break;
     }
+    if (info == NULL) {
+      break;                        /* 遍历结束 */
+    }
+    if (!IsDotName (info->FileName)) {
+      FS_ENTRY e;
+      UINTN    k;
+      ZeroMem (&e, sizeof (e));
+      for (k = 0; info->FileName[k] != 0 && k < 255; k++) {
+        e.Name[k] = info->FileName[k];
+      }
+      e.Name[k] = 0;
+      e.IsDir = (BOOLEAN)((info->Attribute & EFI_FILE_DIRECTORY) != 0);
+      e.Size  = e.IsDir ? 0 : info->FileSize;
+      e.Mtime = EfiTimeToUnix (&info->ModificationTime);
+      if (n == cap) {
+        UINTN    ncap = cap ? cap * 2 : 16;
+        FS_ENTRY *nb = (FS_ENTRY *)MemRealloc (out, ncap * sizeof (FS_ENTRY));
+        if (nb == NULL) {
+          st = EFI_OUT_OF_RESOURCES;
+          break;
+        }
+        out = nb;
+        cap = ncap;
+      }
+      out[n++] = e;
+    }
   }
+  MemFree (rbuf);
   dir->Close (dir);
   if (EFI_ERROR (st)) {
     MemFree (out);
@@ -733,7 +848,7 @@ uInfo (
     MemFree (norm);
     return st;
   }
-  st = GetInfoAlloc (file, &gEfiFileInfoGuid, (VOID **)&info, &sz);
+  st = UefiGetInfoRobust (file, &gEfiFileInfoGuid, (VOID **)&info, &sz);
   file->Close (file);
   if (EFI_ERROR (st)) {
     MemFree (norm);
@@ -807,22 +922,4 @@ FsUefiFromRoot (
   return &F->Ops;
 }
 
-FS_OPS *
-FsUefiBackend (
-  EFI_HANDLE SfsHandle
-  )
-{
-  EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *sfs;
-  EFI_FILE_PROTOCOL               *root;
-  EFI_STATUS                      st;
-
-  st = gBS->HandleProtocol (SfsHandle, &gEfiSimpleFileSystemProtocolGuid, (VOID **)&sfs);
-  if (EFI_ERROR (st)) {
-    return NULL;
-  }
-  st = sfs->OpenVolume (sfs, &root);
-  if (EFI_ERROR (st)) {
-    return NULL;
-  }
-  return FsUefiFromRoot (SfsHandle, root);
-}
+/* FsUefiBackend（带卷缓存）见 VolUefi.c —— 缓存与卷枚举共置。 */

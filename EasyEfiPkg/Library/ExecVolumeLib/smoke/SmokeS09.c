@@ -1,12 +1,15 @@
 /** @file
-  S09 QEMU 冒烟应用（fat 变体，双架构）：
+  S09 QEMU 冒烟应用（双架构；fat / ntfs 变体自适应）：
     1) 自身 LoadedImage 设备路径打印；
     2) VolEnumerate：卷数/标签/FsName/容量/isP3/设备路径；
-    3) VolFindP3：fat 镜像无 P3/标记 → 断言 EFI_NOT_FOUND（降级路径）；
-    4) 启动卷 FAT 读写闭环：MkDir→Open(CREATE)→Write→Flush→Close→重开 Read 比对
-       →Enum/Info→Rename→Delete（含非空目录拒绝负例）→清理；
-    5) 全部通过打印 [S09] FAT-SMOKE PASS。
-  NTFS 变体冒烟待 S14 ntfs.efi 产物就绪后补测（见 docs/handoffs/S09.md）。
+    3) VolFindP3：
+       - 命中（ntfs 变体，P3 带 .easyefi）→ 断言 isP3 标记与 FsName=NTFS，
+         在 P3 上跑 FsOps 读写闭环 → [S09] NTFS-SMOKE PASS；
+       - EFI_NOT_FOUND（fat 变体，无 P3/标记）→ 降级路径断言，
+         在启动 FAT 卷上跑同一闭环 → [S09] FAT-SMOKE PASS；
+    4) 闭环：MkDir→Open(CREATE)→Write→Flush→Close→重开 Read 比对→EOF→
+       Enum/Info→非空目录删除拒绝/缺失文件打开失败负例→Rename→Delete→清目录。
+  驱动加载由 startup.nsh 负责（S14/S15 职责）；本应用不 load 驱动。
 **/
 #include <Uefi.h>
 #include <Protocol/LoadedImage.h>
@@ -21,7 +24,7 @@
 #include "Contract/EfiMem.h"
 #include "Contract/FsOps.h"
 #include "Contract/VolumeModel.h"
-#include "ExecVolumeInternal.h"
+#include "../ExecVolumeInternal.h"
 
 #define PROBE_SIZE  4096
 
@@ -36,7 +39,7 @@
 
 STATIC
 EFI_STATUS
-RunFatIo (
+RunIoChain (
   FS_OPS *Fs
   )
 {
@@ -112,25 +115,21 @@ UefiMain (
   EFI_SYSTEM_TABLE  *SystemTable
   )
 {
-  EFI_LOADED_IMAGE_PROTOCOL *li;
-  EFI_DEVICE_PATH_PROTOCOL  *dp;
-  UINT8                     *bootDp;
-  UINTN                     bootLen, i, n = 0;
+  UINT8                     *bootDp = NULL;
+  UINTN                     bootLen = 0, i, n = 0;
   VOLUME_INFO               *vols = NULL;
   FS_OPS                    *p3 = NULL, *bootFs = NULL;
-  EFI_STATUS                st;
+  EFI_STATUS                st, ioSt;
 
+  (VOID)ImageHandle;
   (VOID)SystemTable;
   gBS->SetWatchdogTimer (0, 0, 0, NULL);
 
-  st = gBS->HandleProtocol (ImageHandle, &gEfiLoadedImageProtocolGuid, (VOID **)&li);
-  CHECK_ST (st, "loaded-image");
-  dp      = li->FilePath;
-  bootLen = GetDevicePathSize (dp);
-  bootDp  = (UINT8 *)MemAlloc (bootLen);
-  CHECK (bootDp != NULL, "bootdp-alloc");
-  CopyMem (bootDp, dp, bootLen);
-  Print (L"[S09] boot-dp: %s\n", ConvertDevicePathToText (dp, TRUE, FALSE));
+  /* 完整启动设备路径 = DeviceHandle dp（含 HD(GPT)）+ LoadedImage.FilePath */
+  st = VolOwnBootDp (&bootDp, &bootLen);
+  CHECK_ST (st, "own-boot-dp");
+  Print (L"[S09] boot-dp: %s\n",
+         ConvertDevicePathToText ((EFI_DEVICE_PATH_PROTOCOL *)bootDp, TRUE, FALSE));
 
   /* 卷枚举 */
   st = VolEnumerate (&vols, &n);
@@ -150,20 +149,40 @@ UefiMain (
   }
   CHECK (bootFs != NULL, "boot-fat-volume-not-found");
 
-  /* P3 发现：fat 镜像无 P3/标记 → NOT_FOUND（DEGRADED 降级路径） */
+  /* P3 发现：ntfs 变体应命中；fat 变体应 NOT_FOUND（DEGRADED 降级路径） */
   st = VolFindP3 (bootDp, bootLen, &p3);
   Print (L"[S09] findp3=%r\n", st);
-  CHECK (st == EFI_NOT_FOUND, "findp3-expected-not-found");
-  CHECK (p3 == NULL, "findp3-handle-should-be-null");
-
-  /* FAT 读写闭环 */
-  st = RunFatIo (bootFs);
-  if (EFI_ERROR (st)) {
-    MemFree (bootDp);
-    VolFree (vols, n);
-    return st;
+  if (!EFI_ERROR (st)) {
+    CHECK (p3 != NULL, "findp3-handle-null");
+    /* VolFindP3 内部独立枚举，Fs 指针与本应用先前枚举不同实例；
+     * 以 IsP3 标记定位同一分区（同盘+分区3+标记，唯一）。 */
+    for (i = 0; i < n; i++) {
+      if (vols[i].IsP3) {
+        break;
+      }
+    }
+    CHECK (i < n, "p3-not-marked-in-enumeration");
+    Print (L"[S09] P3-FOUND fs=%s label=%s\n", vols[i].FsName, vols[i].Label);
+    CHECK (EfiStrCmp (vols[i].FsName, U16 ("NTFS")) == 0, "p3-fsname-not-ntfs");
+    ioSt = RunIoChain (p3);
+    /* p3 为卷缓存借用（契约裁决 main 332553a），不得 Destroy */
+    if (EFI_ERROR (ioSt)) {
+      MemFree (bootDp);
+      VolFree (vols, n);
+      return ioSt;
+    }
+    Print (L"[S09] NTFS-SMOKE PASS\n");
+  } else {
+    CHECK (st == EFI_NOT_FOUND, "findp3-unexpected-error");
+    CHECK (p3 == NULL, "findp3-handle-should-be-null");
+    ioSt = RunIoChain (bootFs);
+    if (EFI_ERROR (ioSt)) {
+      MemFree (bootDp);
+      VolFree (vols, n);
+      return ioSt;
+    }
+    Print (L"[S09] FAT-SMOKE PASS\n");
   }
-  Print (L"[S09] FAT-SMOKE PASS\n");
 
   MemFree (bootDp);
   VolFree (vols, n);
