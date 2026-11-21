@@ -1,0 +1,6 @@
+# 宿主测试二进制与调试符号（不入库）
+tests/run-tests
+tests/*.dSYM/
+# 冒烟产物（镜像/日志在 Build/，已全局忽略；此处兜底模块内残留）
+smoke/*.img
+smoke/*.serial.log
