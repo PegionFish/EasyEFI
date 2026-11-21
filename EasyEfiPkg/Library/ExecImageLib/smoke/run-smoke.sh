@@ -17,11 +17,11 @@ DSC="EasyEfiPkg/Library/ExecImageLib/smoke/Smoke.dsc"
 mkdir -p "$OUT"
 
 run_arch () {
-  local arch="$1" ARCH qemu_arch shell app tgt bootimg extimg log
+  local arch="$1" ARCH qemu_arch shell app tgt bootimg extimg log timeout
   local nsh target starts fail=0
   case "$arch" in
-    x64)  ARCH=X64;     qemu_arch=x64;;
-    aa64) ARCH=AARCH64; qemu_arch=aa64;;
+    x64)  ARCH=X64;     qemu_arch=x64;  timeout=480;;   # TCG 模拟慢，放宽
+    aa64) ARCH=AARCH64; qemu_arch=aa64; timeout=180;;   # HVF 加速
     *) echo "bad arch $arch" >&2; return 2;;
   esac
   # mktestimage 容器只挂载 worktree（/work）→ Shell 用 worktree 内拷贝（相对 ROOT 路径）
@@ -57,7 +57,7 @@ run_arch () {
 
   echo "== [$arch] qemu run (2 USB sticks) =="
   bash "$ROOT/scripts/qemu-run.sh" --arch "$qemu_arch" --image "$bootimg" \
-    --expect "$HERE/expect-s10.txt" --timeout 300 \
+    --expect "$HERE/expect-s10.txt" --timeout "$timeout" \
     --extra "-drive id=stick2,file=$extimg,format=raw,if=none -device usb-storage,drive=stick2" \
     || return 1
   log="${bootimg%.img}.serial.log"
