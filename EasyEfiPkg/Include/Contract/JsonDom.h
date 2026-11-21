@@ -38,7 +38,8 @@ EFI_STATUS JsonDomFromHost (CONST CHAR8 *Text, JSON_NODE **Out);  /* 宿主 jans
 
 VOID       JsonDomFree (JSON_NODE *N);
 JSON_NODE *JsonObjectGet (CONST JSON_NODE *Obj, CONST CHAR8 *Key);   /* 无则 NULL */
-UINTN      JsonArrayCount (CONST JSON_NODE *Arr);
+/* 命名避开 JsonLib.h 的 JsonArrayCount（UEFI 构建符号冲突，S03 上报，leader 批准改名） */
+UINTN      JsonDomArrayCount (CONST JSON_NODE *Arr);
 JSON_NODE *JsonArrayGet (CONST JSON_NODE *Arr, UINTN Index);
 
 #endif

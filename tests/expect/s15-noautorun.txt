@@ -1,0 +1,1 @@
+noautorun flag on boot partition
