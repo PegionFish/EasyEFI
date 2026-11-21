@@ -445,6 +445,16 @@ TEST (t02_6_goto_clamp) {
       ASSERT_EQ (Tok.Type, UTF8_TOKEN_RAW);
       ASSERT_EQ (Tok.Raw, 0xFF);
     }
+    /* 空文件：行存在但无 token → NOT_FOUND */
+    ASSERT_OK (ModelLoad (M, NULL, 0));
+    ASSERT_EQ (ModelTokenAt (M, 0, 0, &Tok), EFI_NOT_FOUND);
+    /* 光标处码点查询（S13 状态栏用法：Info 光标 → TokenAt） */
+    LoadStr (M, "\xE4\xB8\xAD\xE6\x96\x87x");
+    ASSERT_OK (ModelSetCursor (M, 0, 1));
+    ASSERT_OK (ModelInfo (M, &Info));
+    ASSERT_OK (ModelTokenAt (M, Info.CursorLine, Info.CursorCol, &Tok));
+    ASSERT_EQ (Tok.Type, UTF8_TOKEN_CP);
+    ASSERT_EQ (Tok.Cp, 0x6587);
   }
   ModelFree (M);
 }
