@@ -1,0 +1,6 @@
+# 上游源码由 fetch.sh 按锁定 commit 拉取（SHA256 校验），不入库
+src/
+conf/
+# 冒烟中间产物（serial 日志作为证据保留入库，不忽略）
+smoke/shell/
+smoke/*.img

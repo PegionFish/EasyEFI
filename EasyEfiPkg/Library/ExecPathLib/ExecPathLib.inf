@@ -1,14 +1,14 @@
-## ExecPathLib STUB（S00 脚手架；流负责人替换 Sources 为真实实现）
+## ExecPathLib — 路径文法唯一解释器（S04 实现；契约 Include/Contract/ExecPath.h）
 [Defines]
   INF_VERSION    = 0x0001001b
   BASE_NAME      = ExecPathLib
   FILE_GUID      = 855609A0-EC4D-41F2-8164-553862FBBFFA
   MODULE_TYPE    = BASE
-  VERSION_STRING = 0.1
+  VERSION_STRING = 1.0
   LIBRARY_CLASS  = ExecPathLib|UEFI_APPLICATION UEFI_DRIVER DXE_DRIVER
 
 [Sources]
-  ExecPathLibStub.c
+  ExecPath.c
 
 [Packages]
   MdePkg/MdePkg.dec

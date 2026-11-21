@@ -1,0 +1,5 @@
+# S14 AARCH64 冒烟断言（qemu-run.sh --expect；每行一个 grep -E 模式）
+\[S14\] NtfsProbe arch=AARCH64
+\[S14\] fs_count=[0-9]+
+\[S14\] vol [0-9]+ label=TOOLKIT
+\[S14\] NTFS TOOLKIT PASS

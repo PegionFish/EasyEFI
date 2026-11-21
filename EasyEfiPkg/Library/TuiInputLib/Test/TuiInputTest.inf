@@ -1,0 +1,25 @@
+## S07 冒烟测试应用（TuiWaitKey 循环 + 命令序列自检；仅 QEMU 冒烟用）
+[Defines]
+  INF_VERSION    = 0x0001001b
+  BASE_NAME      = TuiInputTest
+  FILE_GUID      = 85BFFE22-6309-4E5F-8992-DCF92BEC2D19
+  MODULE_TYPE    = UEFI_APPLICATION
+  VERSION_STRING = 1.0
+  ENTRY_POINT    = UefiMain
+
+[Sources]
+  TuiInputTest.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  EasyEfiPkg/EasyEfiPkg.dec
+
+[LibraryClasses]
+  UefiApplicationEntryPoint
+  UefiLib
+  UefiBootServicesTableLib
+  PrintLib
+  TuiInputLib
+
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = -DUEFI_BUILD
