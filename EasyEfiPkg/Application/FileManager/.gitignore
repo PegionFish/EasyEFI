@@ -1,0 +1,6 @@
+# 宿主测试二进制与冒烟产物（不入库）
+tests/run-tests
+tests/run-tests-posix
+tests/*.dSYM/
+smoke/build/
+smoke/build-run-*.log

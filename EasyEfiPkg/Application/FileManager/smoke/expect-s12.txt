@@ -1,0 +1,14 @@
+# S12 冒烟 serial 断言（qemu-run --expect；每行一个 grep -E 模式）
+# 链路：启动 → P3 卷列表/目录 → 预览脚本文本 → 复制到 ESP → 执行确认（全路径+默认N）
+#       → 嵌套 Shell 标记 → 退出
+\[S12\] FileManager start
+\[S12\] vol .*TOOLKIT P3=1
+TOOLKIT
+fpt\.nsh
+echo \[S12-NSH\]
+Copied to FS
+EXECUTE
+FS[0-9]:/scripts/fpt\.nsh
+default: N
+\[S12-NSH\] ran
+\[S12\] FileManager exit

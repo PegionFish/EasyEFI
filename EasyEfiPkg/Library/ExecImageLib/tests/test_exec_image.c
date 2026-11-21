@@ -104,14 +104,17 @@ TEST (t10_1_load_options) {
   };
   SetStr (ShellBuf, 64, "\\EFI\\BOOT\\BOOTX64.EFI");
 
+  /* LoadOptions 黄金 = "Shell.efi " argv[0] 令牌 + 脚本路径[ + 参数]。
+     argv[0] 不可省：ProcessCommandLine 跳过 Argv[0]（镜像名），file-name 须在 Argv[1+]。 */
+
   /* a. 无参数 */
   SeamReset (); HostVolReset ();
   SeamSetBootVolDp (BootDp, BootLen);
   ASSERT_OK (ExecNsh (Shell, U16 ("fs0:\\scripts\\flash.nsh"), NULL));
   CheckSeq (Seq, 6);
   C = SeamCall (1);
-  ASSERT_TRUE (EfiStrCmp (C->Options, U16 ("fs0:\\scripts\\flash.nsh")) == 0);
-  ASSERT_EQ (C->OptionsSize, (EfiStrLen (U16 ("fs0:\\scripts\\flash.nsh")) + 1) * 2);
+  ASSERT_TRUE (EfiStrCmp (C->Options, U16 ("Shell.efi fs0:\\scripts\\flash.nsh")) == 0);
+  ASSERT_EQ (C->OptionsSize, (EfiStrLen (U16 ("Shell.efi fs0:\\scripts\\flash.nsh")) + 1) * 2);
   CheckFileDp (C, BootDp, BootLen, Shell);
 
   /* b. 带参数 */
@@ -119,28 +122,28 @@ TEST (t10_1_load_options) {
   SeamSetBootVolDp (BootDp, BootLen);
   ASSERT_OK (ExecNsh (Shell, U16 ("fs0:\\scripts\\flash.nsh"), U16 ("-a -b")));
   C = SeamCall (1);
-  ASSERT_TRUE (EfiStrCmp (C->Options, U16 ("fs0:\\scripts\\flash.nsh -a -b")) == 0);
+  ASSERT_TRUE (EfiStrCmp (C->Options, U16 ("Shell.efi fs0:\\scripts\\flash.nsh -a -b")) == 0);
 
   /* c. 空参数 = 无参数（无尾随空格） */
   SeamReset ();
   SeamSetBootVolDp (BootDp, BootLen);
   ASSERT_OK (ExecNsh (Shell, U16 ("fs0:\\scripts\\flash.nsh"), U16 ("")));
   C = SeamCall (1);
-  ASSERT_TRUE (EfiStrCmp (C->Options, U16 ("fs0:\\scripts\\flash.nsh")) == 0);
+  ASSERT_TRUE (EfiStrCmp (C->Options, U16 ("Shell.efi fs0:\\scripts\\flash.nsh")) == 0);
 
   /* d. 空格路径 → 双引号包裹（Shell 按空格分词，必须引用） */
   SeamReset ();
   SeamSetBootVolDp (BootDp, BootLen);
   ASSERT_OK (ExecNsh (Shell, U16 ("fs0:\\my scripts\\flash.nsh"), NULL));
   C = SeamCall (1);
-  ASSERT_TRUE (EfiStrCmp (C->Options, U16 ("\"fs0:\\my scripts\\flash.nsh\"")) == 0);
+  ASSERT_TRUE (EfiStrCmp (C->Options, U16 ("Shell.efi \"fs0:\\my scripts\\flash.nsh\"")) == 0);
 
   /* e. 空格路径 + 参数 */
   SeamReset ();
   SeamSetBootVolDp (BootDp, BootLen);
   ASSERT_OK (ExecNsh (Shell, U16 ("fs0:\\my scripts\\flash.nsh"), U16 ("-x")));
   C = SeamCall (1);
-  ASSERT_TRUE (EfiStrCmp (C->Options, U16 ("\"fs0:\\my scripts\\flash.nsh\" -x")) == 0);
+  ASSERT_TRUE (EfiStrCmp (C->Options, U16 ("Shell.efi \"fs0:\\my scripts\\flash.nsh\" -x")) == 0);
 
   /* f. 嵌套 Shell 退出码透传（StartImage 返回值） */
   SeamReset ();

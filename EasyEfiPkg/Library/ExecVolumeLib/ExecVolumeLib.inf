@@ -36,6 +36,7 @@
 [Guids]
   gEfiFileInfoGuid                    ## CONSUMES
   gEfiFileSystemInfoGuid              ## CONSUMES
+  gEfiPartTypeSystemPartGuid          ## CONSUMES（ESP 类型 GUID，FsName 启发式）
 
 [BuildOptions]
   GCC:*_*_*_CC_FLAGS = -DUEFI_BUILD

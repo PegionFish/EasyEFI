@@ -1,0 +1,9 @@
+# S13 ntfs 冒烟断言（qemu-run.sh --expect；每行一个 grep -E 模式，全命中=PASS）
+# 链路：打开 P3 中文脚本 → 插入 s13ok → 保存 → 退出 → type 读回 → 重开 → 再读回（V-03/V-05 前置）。
+# 中文字节级往返由宿主 T13-1 逐字节断言；serial 经 ConOut 转码不宜作字节判据。
+\[S13\] Editor start
+\[S13\] Editor exit=0
+\[S13\] readback-1 done
+s13ok
+fpt\.efi
+\[S13\] readback-2 done
