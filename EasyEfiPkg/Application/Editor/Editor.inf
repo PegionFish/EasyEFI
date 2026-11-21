@@ -35,6 +35,7 @@
 
 [Protocols]
   gEfiShellProtocolGuid
+  gEfiShellParametersProtocolGuid
   gEfiLoadedImageProtocolGuid
 
 [Guids]

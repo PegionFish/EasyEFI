@@ -2,7 +2,8 @@
   EditorGlue — S13 Editor UEFI 入口与后端装配（纯 UEFI 胶水，可用裸 L""/gBS）。
 
   职责（core/glue 纪律）：
-  - LoadedImage->LoadOptions = 待打开文件全路径（FM F4 传入；可空 = 未命名新文件）。
+  - 待打开文件全路径：Shell 提示符启动经 ShellParameters.Argv[1]（LoadOptions 为整行命令）；
+    FM F4（ExecEfi）启动经 LoadOptions（即路径）。可空 = 未命名新文件。
   - fsN: 前缀 → Shell GetDevicePathFromMap → 与 VolEnumerate 卷设备路径逐字节匹配 → 该卷 FS_OPS；
     无 Shell/无匹配 → 各卷 Info 探测兜底；无路径 → VolFindP3（P3 优先）或首卷。
   - PCD 阈值传 core：PcdEditorMaxFileSize / PcdUndoDepth（配置优先，不硬编码）。
@@ -21,6 +22,7 @@
 #include <Library/MemoryAllocationLib.h>
 #include <Library/DevicePathLib.h>
 #include <Protocol/Shell.h>
+#include <Protocol/ShellParameters.h>
 #include <Protocol/LoadedImage.h>
 
 #include "Contract/EfiCompat.h"
@@ -100,6 +102,7 @@ UefiMain (
   EFI_STATUS                    St;
   EFI_LOADED_IMAGE_PROTOCOL    *Li = NULL;
   EFI_SHELL_PROTOCOL           *Shell = NULL;
+  EFI_SHELL_PARAMETERS_PROTOCOL *ShellParams = NULL;
   VOLUME_INFO                  *Vols = NULL;
   UINTN                         VolCount = 0, i;
   FS_OPS                       *Fs = NULL;
@@ -114,11 +117,20 @@ UefiMain (
 
   Print (L"[S13] Editor start\n");
 
-  /* 1. 命令行参数 = 待打开文件全路径 */
+  /* 1. 命令行参数 = 待打开文件全路径。
+     Shell 提示符启动：LoadOptions 为整行命令（首 token 是镜像名），
+     经 EFI_SHELL_PARAMETERS_PROTOCOL.Argv[1] 取首个参数（规范做法）；
+     FM F4（ExecEfi）启动：无 ShellParams，LoadOptions 即路径 → 回退 TrimPath。 */
   Path = NULL;
-  St = gBS->HandleProtocol (ImageHandle, &gEfiLoadedImageProtocolGuid, (VOID **)&Li);
-  if (!EFI_ERROR (St) && Li != NULL && Li->LoadOptions != NULL) {
-    Path = TrimPath ((CONST CHAR16 *)Li->LoadOptions, PathBuf, sizeof (PathBuf) / sizeof (CHAR16));
+  St = gBS->HandleProtocol (ImageHandle, &gEfiShellParametersProtocolGuid, (VOID **)&ShellParams);
+  if (!EFI_ERROR (St) && ShellParams != NULL && ShellParams->Argc >= 2) {
+    Path = TrimPath (ShellParams->Argv[1], PathBuf, sizeof (PathBuf) / sizeof (CHAR16));
+  }
+  if (Path == NULL) {
+    St = gBS->HandleProtocol (ImageHandle, &gEfiLoadedImageProtocolGuid, (VOID **)&Li);
+    if (!EFI_ERROR (St) && Li != NULL && Li->LoadOptions != NULL) {
+      Path = TrimPath ((CONST CHAR16 *)Li->LoadOptions, PathBuf, sizeof (PathBuf) / sizeof (CHAR16));
+    }
   }
   Rel = Path;
 
