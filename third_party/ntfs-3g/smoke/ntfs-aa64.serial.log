@@ -17,19 +17,19 @@ EDK II
 UEFI v2.70 (EDK II, 0x00010000)
 [1m[33m[40mMapping table[0m[37m[40m
 [1m[33m[40m      FS0:[0m[37m[40m [1m[37m[40mAlias(s):[0m[37m[40mHD0a0b:;BLK1:
-          PciRoot(0x0)/Pci(0x2,0x0)/USB(0x0,0x0)/HD(1,GPT,012EE564-1B62-4125-B271-3978555C26BA,0x800,0x20000)
+          PciRoot(0x0)/Pci(0x2,0x0)/USB(0x0,0x0)/HD(1,GPT,0BB213D3-77B5-4E3E-812A-3284660A646C,0x800,0x20000)
 [1m[33m[40m     BLK0:[0m[37m[40m [1m[37m[40mAlias(s):[0m[37m[40m
           PciRoot(0x0)/Pci(0x2,0x0)/USB(0x0,0x0)
 [1m[33m[40m     BLK2:[0m[37m[40m [1m[37m[40mAlias(s):[0m[37m[40m
-          PciRoot(0x0)/Pci(0x2,0x0)/USB(0x0,0x0)/HD(2,GPT,DE65BEAA-04C2-4CEC-8A02-CAE4F196A353,0x20800,0x3F7DF)
+          PciRoot(0x0)/Pci(0x2,0x0)/USB(0x0,0x0)/HD(2,GPT,7F5F7BEB-6AC5-4171-8044-F7C2A1F354F2,0x20800,0x3F7DF)
 [13;01HPress [1m[37m[40mESC[0m[37m[40m in 5 seconds to skip [1m[33m[40mstartup.nsh[0m[37m[40m or any other key to continue.[13;01HPress [1m[37m[40mESC[0m[37m[40m in 4 seconds to skip [1m[33m[40mstartup.nsh[0m[37m[40m or any other key to continue.[13;01HPress [1m[37m[40mESC[0m[37m[40m in 3 seconds to skip [1m[33m[40mstartup.nsh[0m[37m[40m or any other key to continue.[13;01HPress [1m[37m[40mESC[0m[37m[40m in 2 seconds to skip [1m[33m[40mstartup.nsh[0m[37m[40m or any other key to continue.[13;01HPress [1m[37m[40mESC[0m[37m[40m in 1 seconds to skip [1m[33m[40mstartup.nsh[0m[37m[40m or any other key to continue.
 [1m[33m[40mShell> [0m[37m[40mecho -off
 Image 'FS0:\EFI\Drivers\ntfs.efi' loaded at BFB66000 - Success
 [1m[33m[40mMapping table[0m[37m[40m
 [1m[33m[40m      FS0:[0m[37m[40m [1m[37m[40mAlias(s):[0m[37m[40mHD0a0b:;BLK1:
-          PciRoot(0x0)/Pci(0x2,0x0)/USB(0x0,0x0)/HD(1,GPT,012EE564-1B62-4125-B271-3978555C26BA,0x800,0x20000)
+          PciRoot(0x0)/Pci(0x2,0x0)/USB(0x0,0x0)/HD(1,GPT,0BB213D3-77B5-4E3E-812A-3284660A646C,0x800,0x20000)
 [1m[33m[40m      FS1:[0m[37m[40m [1m[37m[40mAlias(s):[0m[37m[40mHD0a0c:;BLK2:
-          PciRoot(0x0)/Pci(0x2,0x0)/USB(0x0,0x0)/HD(2,GPT,DE65BEAA-04C2-4CEC-8A02-CAE4F196A353,0x20800,0x3F7DF)
+          PciRoot(0x0)/Pci(0x2,0x0)/USB(0x0,0x0)/HD(2,GPT,7F5F7BEB-6AC5-4171-8044-F7C2A1F354F2,0x20800,0x3F7DF)
 [1m[33m[40m     BLK0:[0m[37m[40m [1m[37m[40mAlias(s):[0m[37m[40m
           PciRoot(0x0)/Pci(0x2,0x0)/USB(0x0,0x0)
 [S14] NtfsProbe arch=AARCH64
