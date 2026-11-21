@@ -1062,7 +1062,7 @@ STATIC VOID draw_dir_list (FM_CORE *C) {
 STATIC VOID draw_preview (FM_CORE *C) {
   UINTN pcol = FM_LIST_W + 1;
   UINTN pw = C->Cols > pcol + 1 ? C->Cols - pcol : 0;
-  UINTN i, row;
+  UINTN i;
   CHAR16 line[512];
   if (!pw) return;
   for (i = 0; i < C->Visible; i++) TuiFill (1 + i, pcol - 1, 1, 1, L'|', TUI_ATTR_NORMAL);
@@ -1088,8 +1088,8 @@ STATIC VOID draw_preview (FM_CORE *C) {
       return;
     }
     if (C->PreviewHex || C->PreviewBinary) {
-      /* hex：offset + 8 字节 + ascii */
-      UINTN off, r;
+      /* hex：offset + FM_HEX_BPR 字节 + ascii */
+      UINTN r;
       draw_text (2, pcol, pw, C->PreviewBinary ? U16("[binary] F3:text") : U16("[hex] F3:text"), TUI_ATTR_KEYBAR);
       for (r = 0; r + 3 < C->Visible + 1; r++) {
         UINTN base = r * FM_HEX_BPR;
