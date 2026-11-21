@@ -6,7 +6,10 @@
   设计与任务书中的 WSL2/Linux 命令在容器内原样可用（losetup/sgdisk/mkfs.ntfs 需 `--privileged`）。
 - **QEMU 测试**：macOS 原生（aa64 用 HVF 加速；x64 为 TCG 模拟，启动较慢属预期）。
 - **宿主单测**：macOS 原生 clang + ASan/UBSan，不依赖容器。
-- edk2 共享只读：`<repo>/edk2`（锁定 SHA 见 docs/pins/S00-edk2.md），worktree 经 PACKAGES_PATH 引用，不做 submodule。
+- edk2 共享只读：**`~/.cache/easyefi/edk2`**（锁定 SHA 见 docs/pins/S00-edk2.md）。
+  **必须在仓库树外**：edk2 若在 WORKSPACE 内会被重复发现，触发 edk2 的包路径 case-mismatch
+  检查（S00 实证踩坑）。worktree 经 PACKAGES_PATH=/edk2（容器挂载）引用，不做 submodule。
+  镜像重建时上下文需含 edk2/：`docker build -f docker/Dockerfile ~/.cache/easyefi`。
 
 ## 每流 worktree 配方
 
@@ -14,9 +17,9 @@
 # 主仓库先有 S00 基建提交（worktree 只带已提交内容）
 git -C /Users/bob/EasyEFI worktree add /Users/bob/EasyEFI/.worktrees/Sxx -b stream/Sxx-name
 cd /Users/bob/EasyEFI/.worktrees/Sxx
-# 构建（容器内 WORKSPACE=本 worktree，Conf/Build 独立）：
-EDK2_DIR=/Users/bob/EasyEFI/edk2 bash scripts/build-module.sh EasyEfiPkg/Library/XxxLib/XxxLib.inf X64
-EDK2_DIR=/Users/bob/EasyEFI/edk2 bash scripts/build-module.sh EasyEfiPkg/Library/XxxLib/XxxLib.inf AARCH64
+# 构建（容器内 WORKSPACE=本 worktree，Conf/Build 独立；edk2 默认 ~/.cache/easyefi/edk2）：
+bash scripts/build-module.sh EasyEfiPkg/Library/XxxLib/XxxLib.inf X64
+bash scripts/build-module.sh EasyEfiPkg/Library/XxxLib/XxxLib.inf AARCH64
 # 宿主测试（模块目录内）：
 make -f host.mk test
 # 最小镜像冒烟：
@@ -26,7 +29,7 @@ bash scripts/qemu-run.sh --arch x64 --image test.img --expect expect.txt --timeo
 ```
 
 注意：
-- worktree 内 `edk2/` 不存在（gitignored）→ 必须传 `EDK2_DIR` 指向主仓库的共享 edk2。
+- edk2 在 `~/.cache/easyefi/edk2`（仓库树外）；`EDK2_DIR` 可覆盖。
 - 容器挂载：worktree → /work，共享 edk2 → /edk2:ro。每流独立 Conf/Build，互不干扰。
 - **CONF_PATH 必须显式设为 /work/Conf 且预先 mkdir**（build-module.sh 已内置）：edksetup.sh 默认把
   Conf 放进 edk2 树（$EDK_TOOLS_PATH/../Conf），只读挂载下会静默失败（S00 实证踩坑）。

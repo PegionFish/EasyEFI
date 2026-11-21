@@ -5,7 +5,8 @@
 - commit SHA：`2970e5699ba6267f3384ffab20f96647578aebc8`
 - 来源：Gitee 镜像 `https://gitee.com/mirrors/edk2`（浅克隆；GitHub git 协议本机受阻）
 - 信任校验：克隆 HEAD == GitHub 官方 tag SHA（api.github.com/repos/tianocore/edk2/git/ref/tags/edk2-stable202608）✅
-- 位置：`<repo>/edk2/`（gitignored，共享只读；worktree 经 PACKAGES_PATH 引用）
+- 位置：`~/.cache/easyefi/edk2/`（**仓库树外**——在 WORKSPACE 内会触发 edk2 包路径
+  case-mismatch 检查，S00 实证；gitignored 约定不再适用，直接外置）
 - 子模块：BaseTools/BrotliCompress 与 MdeModulePkg/BrotliCustomDecompressLib 所需 brotli，
   锁定 commit `e230f474b87134e8c6c85b630084c612057f253e`（google/brotli，codeload tarball 填充）。
   其余子模块（openssl 等）本项目构建不需要。
