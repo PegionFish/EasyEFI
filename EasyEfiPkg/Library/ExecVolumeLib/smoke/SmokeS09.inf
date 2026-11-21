@@ -1,0 +1,33 @@
+## S09 冒烟应用（fat 变体；卷枚举 + FAT 读写 + P3 降级路径断言）
+[Defines]
+  INF_VERSION    = 0x0001001b
+  BASE_NAME      = SmokeS09
+  FILE_GUID      = 591D52B6-3073-43D4-8349-85F7D37A3337
+  MODULE_TYPE    = UEFI_APPLICATION
+  VERSION_STRING = 0.1
+  ENTRY_POINT    = UefiMain
+
+[Sources]
+  SmokeS09.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  EasyEfiPkg/EasyEfiPkg.dec
+
+[LibraryClasses]
+  UefiApplicationEntryPoint
+  UefiLib
+  UefiBootServicesTableLib
+  PrintLib
+  BaseLib
+  BaseMemoryLib
+  DevicePathLib
+  EfiCompatLib
+  ExecVolumeLib
+
+[Protocols]
+  gEfiLoadedImageProtocolGuid
+  gEfiDevicePathProtocolGuid
+
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = -DUEFI_BUILD

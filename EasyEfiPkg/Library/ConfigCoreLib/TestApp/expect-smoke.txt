@@ -1,0 +1,18 @@
+\[S03\] ConfigSmoke start arch=(x64|aarch64)
+\[S03\] GOOD items=9 errs=0 warns=0 st=0
+\[S03\] GOOD PASS
+\[S03\] DOM obj\{title:str\(EasyEFI\ Work\ Toolkit\),version:str\(1\.0\.0\),skip_timeout:2,items:arr\[obj\{id:str\(win\-usb\),name:str\(Windows\ installer\ \(external\\\)\),desc:str\(Find\ BOOTX64\.EFI\ on\ other\ media\),arch:arr\[str\(x64\)\],action:str\(exec\),path:str\(auto:/EFI/BOOT/BOOTX64\.EFI\)\},obj\{id:str\(linux\-x64\),name:str\(Linux\ LiveCD\ x64\ \(external\\\)\),arch:arr\[str\(x64\)\],action:str\(exec\),path:str\(auto:/EFI/BOOT/BOOTX64\.EFI\)\},obj\{id:str\(linux\-arm64\),name:str\(Linux\ LiveCD\ ARM64\ \(external\\\)\),arch:arr\[str\(aarch64\)\],action:str\(exec\),path:str\(auto:/EFI/BOOT/BOOTAA64\.EFI\)\},obj\{id:str\(winpe\-local\),name:str\(Local\ WinPE\ \(data\ volume\\\)\),arch:arr\[str\(x64\)\],action:str\(exec\),path:str\(data:/entries/winpe\.efi\)\},obj\{id:str\(fpt\),name:str\(Intel\ FPT\ flash\ tool\),desc:str\(x64\ only\.\ HIGH\ RISK:\ writes\ SPI\ flash\),arch:arr\[str\(x64\)\],action:str\(exec\),path:str\(data:/scripts/fpt\.nsh\),danger:true\},obj\{id:str\(afu\),name:str\(AMI\ AFU\ flash\ tool\),desc:str\(x64\ only\.\ HIGH\ RISK:\ writes\ SPI\ flash\),arch:arr\[str\(x64\)\],action:str\(exec\),path:str\(data:/scripts/afu\.nsh\),danger:true\},obj\{id:str\(nvram\-boot\),name:str\(Boot\ installed\ OS\ \(NVRAM\ menu\\\)\),desc:str\(Pick\ firmware\ boot\ entry\.\ BitLocker:\ have\ recovery\ key\ ready\),arch:arr\[str\(x64\),str\(aarch64\)\],action:str\(boot\),path:str\(boot:menu\)\},obj\{id:str\(shell\),name:str\(Return\ to\ UEFI\ Shell\),arch:arr\[str\(x64\),str\(aarch64\)\],action:str\(shell\)\},obj\{id:str\(reboot\),name:str\(Reboot\),arch:arr\[str\(x64\),str\(aarch64\)\],action:str\(reset\),confirm:true\}\]\}
+\[S03\] BAD items=2 errs=6 warns=3 st=0
+\[S03\] BAD err idx=0 field=id code=2
+\[S03\] BAD err idx=1 field=name code=3
+\[S03\] BAD err idx=2 field=arch code=5
+\[S03\] BAD err idx=4 field=id code=7
+\[S03\] BAD err idx=5 field=path code=6
+\[S03\] BAD err idx=6 field=action code=5
+\[S03\] BAD warn idx=-1 field=skip_timeout code=9
+\[S03\] BAD warn idx=-1 field=extra_top code=0
+\[S03\] BAD warn idx=7 field=unknown_field code=0
+\[S03\] BAD PASS
+\[S03\] DANGER-CONFIRM PASS
+\[S03\] SYNTAX PASS
+\[S03\] SMOKE PASS
