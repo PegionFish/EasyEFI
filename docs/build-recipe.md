@@ -71,8 +71,15 @@ bash scripts/qemu-run.sh --arch x64 --image test.img --expect expect.txt --timeo
 ## S00 出口标准（验收记录）
 
 - [x] 宿主框架自检 4/4 通过（ASan/UBSan 干净）
-- [ ] easyefi-build 镜像构建成功（BaseTools 含 brotli）
-- [ ] Shell X64/AA64 构建成功（ShellPkg，GCC5）
+- [x] easyefi-build 镜像构建成功（BaseTools 含 brotli；共享 edk2 内 BaseTools 已编译）
+- [x] 双 worktree 并行构建两个不同模块成功（wt-A Utf8Lib.lib / wt-B TuiScreenLib.lib，独立 Conf/Build）
+- [ ] Shell X64/AA64 构建成功（ShellPkg，GCC）
 - [ ] stub Launcher X64/AA64 构建成功
 - [ ] 最小 fat 镜像 QEMU 双架构引导 → `[STUB] Launcher <arch>` 标记命中
-- [ ] 双 worktree 并行构建两个不同模块成功
+
+## 追加踩坑记录（S00 实证）
+
+- 库模块要用 `-m` 构建，须同时列入 DSC `[Components]`（MdePkg.dsc 模式）；
+  `-p <lib.inf>` 独立构建在 stable202608 的 build.py 会崩溃（error C0DE）。碎片已含双段。
+- `EFI_STATUS`/`EFI_UNSUPPORTED` 定义在 `<Uefi.h>`（UefiBaseTypes.h），不在 `<Base.h>`；
+  EfiCompat.h UEFI 分支已改 include Uefi.h。
