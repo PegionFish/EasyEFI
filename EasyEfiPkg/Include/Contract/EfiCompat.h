@@ -8,7 +8,7 @@
 
 #ifdef UEFI_BUILD
 
-#include <Base.h>
+#include <Uefi.h>
 #include <Library/BaseLib.h>
 
 #define EfiStrLen  StrLen
