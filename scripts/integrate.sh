@@ -12,7 +12,7 @@ while [[ $# -gt 0 ]]; do case "$1" in
   *) echo "unknown $1"; exit 2;; esac; done
 
 efi() { # $1=arch $2=module-path-under-EasyEfiPkg $3=name -> echoes path or stub
-  local p="Build/EasyEfiPkg/RELEASE_GCC/$1/EasyEfiPkg/$2/OUTPUT/$3.efi"
+  local p="Build/EasyEfiPkg/RELEASE_GCC/$1/EasyEfiPkg/$2/$3/OUTPUT/$3.efi"
   [[ -f "$p" ]] && echo "$p" || echo ""
 }
 shell_efi() { echo "Build/Shell/RELEASE_GCC/$1/ShellPkg/Application/Shell/Shell/OUTPUT/Shell.efi"; }
@@ -44,9 +44,9 @@ cp config/launcher.example.json staging/P3/launcher.json
 bash scripts/mkimage.sh --out easyefi-integrated.img --staging staging --size "$SIZE_GB"
 bash scripts/verify-image.sh easyefi-integrated.img
 echo "=== AA64 boot ==="
-bash scripts/qemu-run.sh --arch aa64 --image easyefi-integrated.img --expect tests/expect/full-aa64.txt --timeout 150 || echo "AA64 boot: check log (real Launcher marker differs from stub)"
+bash scripts/qemu-run.sh --arch aa64 --image easyefi-integrated.img --expect tests/expect/integrated-aa64.txt --timeout 150 || echo "AA64 boot: check log (real Launcher marker differs from stub)"
 if [[ $SKIP_X64 == 0 ]]; then
   echo "=== x64 boot ==="
-  bash scripts/qemu-run.sh --arch x64 --image easyefi-integrated.img --expect tests/expect/full-x64.txt --timeout 300 || echo "x64 boot: check log"
+  bash scripts/qemu-run.sh --arch x64 --image easyefi-integrated.img --expect tests/expect/integrated-x64.txt --timeout 300 || echo "x64 boot: check log"
 fi
 echo "integrated image: easyefi-integrated.img"

@@ -1,0 +1,6 @@
+EasyEFI
+\[S12\] FileManager start
+EXECUTE
+/scripts/fpt\.nsh
+\[FPT-PLACEHOLDER\]
+\[S12\] FileManager exit

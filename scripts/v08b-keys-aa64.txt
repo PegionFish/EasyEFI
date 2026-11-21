@@ -1,0 +1,4 @@
+# V08b: 数字直选 item1(V08 flash)→Enter→danger确认y→嵌套Shell跑fpt.nsh
+15 1
+17 ret
+19 y

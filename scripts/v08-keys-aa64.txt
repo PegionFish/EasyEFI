@@ -1,0 +1,25 @@
+# V-08 刷机闭环锚定用例（aa64/HVF）：Launcher→FileManager→scripts/fpt.nsh→执行→嵌套Shell→退出
+# Launcher 菜单 item10=FileManager（初始 Sel=item1，Down×9）；FM P3 根 dirs 排序 docs/entries/payloads/scripts（Sel0=docs，Down×3→scripts）
+# 首键 15s 越过 Shell 倒计时
+15 down
+16 down
+17 down
+18 down
+19 down
+20 down
+21 down
+22 down
+23 down
+25 ret
+28 down
+29 down
+30 down
+32 ret
+34 ret
+36 y
+40 e
+40.3 x
+40.6 i
+40.9 t
+41.5 ret
+44 f10
