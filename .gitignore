@@ -1,0 +1,17 @@
+# 依赖与构建产物（不入库）
+.deps/
+edk2/
+Build/
+Conf/
+build/
+*.img
+*.fd
+*.raw
+firmware/
+__pycache__/
+*.o
+*.pyc
+tests/host/build/
+.worktrees/
+# macOS
+.DS_Store

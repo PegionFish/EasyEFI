@@ -1,0 +1,44 @@
+{
+  "title": "EasyEFI Work Toolkit",
+  "version": "1.0.0",
+  "skip_timeout": 2,
+  "items": [
+    { "id": "win-usb", "name": "Windows installer (external)",
+      "desc": "Find BOOTX64.EFI on other media",
+      "arch": ["x64"], "action": "exec",
+      "path": "auto:/EFI/BOOT/BOOTX64.EFI" },
+
+    { "id": "linux-x64", "name": "Linux LiveCD x64 (external)",
+      "arch": ["x64"], "action": "exec",
+      "path": "auto:/EFI/BOOT/BOOTX64.EFI" },
+
+    { "id": "linux-arm64", "name": "Linux LiveCD ARM64 (external)",
+      "arch": ["aarch64"], "action": "exec",
+      "path": "auto:/EFI/BOOT/BOOTAA64.EFI" },
+
+    { "id": "winpe-local", "name": "Local WinPE (data volume)",
+      "arch": ["x64"], "action": "exec",
+      "path": "data:/entries/winpe.efi" },
+
+    { "id": "fpt", "name": "Intel FPT flash tool",
+      "desc": "x64 only. HIGH RISK: writes SPI flash",
+      "arch": ["x64"], "action": "exec",
+      "path": "data:/scripts/fpt.nsh", "danger": true },
+
+    { "id": "afu", "name": "AMI AFU flash tool",
+      "desc": "x64 only. HIGH RISK: writes SPI flash",
+      "arch": ["x64"], "action": "exec",
+      "path": "data:/scripts/afu.nsh", "danger": true },
+
+    { "id": "nvram-boot", "name": "Boot installed OS (NVRAM menu)",
+      "desc": "Pick firmware boot entry. BitLocker: have recovery key ready",
+      "arch": ["x64", "aarch64"], "action": "boot",
+      "path": "boot:menu" },
+
+    { "id": "shell", "name": "Return to UEFI Shell",
+      "arch": ["x64", "aarch64"], "action": "shell" },
+
+    { "id": "reboot", "name": "Reboot",
+      "arch": ["x64", "aarch64"], "action": "reset", "confirm": true }
+  ]
+}

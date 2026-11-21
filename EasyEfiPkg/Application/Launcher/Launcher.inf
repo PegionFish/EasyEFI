@@ -1,0 +1,25 @@
+## Launcher STUB 应用（S00 脚手架）
+[Defines]
+  INF_VERSION    = 0x0001001b
+  BASE_NAME      = Launcher
+  FILE_GUID      = E5FA1B30-A170-47E9-92AC-59BB34A80936
+  MODULE_TYPE    = UEFI_APPLICATION
+  VERSION_STRING = 0.1
+  ENTRY_POINT    = UefiMain
+
+[Sources]
+  LauncherStub.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  EasyEfiPkg/EasyEfiPkg.dec
+
+[LibraryClasses]
+  UefiApplicationEntryPoint
+  UefiLib
+  UefiBootServicesTableLib
+  PrintLib
+
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = -DUEFI_BUILD

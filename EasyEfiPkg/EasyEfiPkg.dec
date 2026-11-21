@@ -1,0 +1,18 @@
+## EasyEfiPkg 包声明（leader 独占）
+[Defines]
+  DEC_SPECIFICATION = 0x0001001b
+  PACKAGE_NAME      = EasyEfiPkg
+  PACKAGE_GUID      = 87285152-22D2-4927-9593-9D8155DE9ABA
+  VERSION_STRING    = 0.1
+
+[Includes]
+  Include
+
+[PcdsFixedAtBuild]
+  gEasyEfiPkgTokenSpaceGuid.PcdEditorMaxFileSize|262144|UINT32|0x00000001
+  gEasyEfiPkgTokenSpaceGuid.PcdPreviewMaxBytes|16384|UINT32|0x00000002
+  gEasyEfiPkgTokenSpaceGuid.PcdUndoDepth|256|UINT32|0x00000003
+  gEasyEfiPkgTokenSpaceGuid.PcdSkipTimeoutDefault|2|UINT32|0x00000004
+
+[Guids]
+  gEasyEfiPkgTokenSpaceGuid = { 0x3c2f4c50, 0x5e82, 0x4fa6, { 0x89, 0xe9, 0xf4, 0xe9, 0x67, 0x4a, 0x8d, 0xb0 }}

@@ -1,0 +1,21 @@
+## TuiScreenLib STUB（S00 脚手架；流负责人替换 Sources 为真实实现）
+[Defines]
+  INF_VERSION    = 0x0001001b
+  BASE_NAME      = TuiScreenLib
+  FILE_GUID      = 4BA86384-7018-437B-9B81-BA8532F84C8E
+  MODULE_TYPE    = BASE
+  VERSION_STRING = 0.1
+  LIBRARY_CLASS  = TuiScreenLib|UEFI_APPLICATION UEFI_DRIVER DXE_DRIVER
+
+[Sources]
+  TuiScreenLibStub.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  EasyEfiPkg/EasyEfiPkg.dec
+
+[LibraryClasses]
+  EfiCompatLib
+
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = -DUEFI_BUILD

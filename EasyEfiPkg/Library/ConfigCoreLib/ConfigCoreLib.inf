@@ -1,0 +1,21 @@
+## ConfigCoreLib STUB（S00 脚手架；流负责人替换 Sources 为真实实现）
+[Defines]
+  INF_VERSION    = 0x0001001b
+  BASE_NAME      = ConfigCoreLib
+  FILE_GUID      = 6FD59C5B-F07F-47FA-A478-895A8549EF89
+  MODULE_TYPE    = BASE
+  VERSION_STRING = 0.1
+  LIBRARY_CLASS  = ConfigCoreLib|UEFI_APPLICATION UEFI_DRIVER DXE_DRIVER
+
+[Sources]
+  ConfigCoreLibStub.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  EasyEfiPkg/EasyEfiPkg.dec
+
+[LibraryClasses]
+  EfiCompatLib
+
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = -DUEFI_BUILD

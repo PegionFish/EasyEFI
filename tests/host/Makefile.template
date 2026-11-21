@@ -1,0 +1,24 @@
+# 宿主测试 Makefile 模板（S00）。复制到模块目录为 host.mk 并按注释调整。
+# 运行: make -f host.mk test   （在模块目录内；原生 clang/gcc + ASan/UBSan）
+ROOT := $(abspath ../../..)
+CC ?= cc
+CFLAGS := -g -O1 -fsanitize=address,undefined -fno-omit-frame-pointer \
+          -I$(ROOT)/EasyEfiPkg/Include -I$(ROOT)/tests/host -I$(ROOT)/tests/host/mocks
+# ---- 按模块调整 ----
+MODDIR := $(ROOT)/EasyEfiPkg/Library/Utf8Lib
+MODSRC := $(MODDIR)/Utf8.c
+MOCKS  := $(ROOT)/tests/host/mocks/MockTui.c
+TESTS  := $(wildcard $(MODDIR)/tests/test_*.c)
+# --------------------
+COMPAT := $(ROOT)/EasyEfiPkg/Library/EfiCompatLib/host/EfiMemHost.c
+BIN := $(MODDIR)/tests/run-tests
+
+$(BIN): $(MODSRC) $(COMPAT) $(MOCKS) $(TESTS)
+	mkdir -p $(MODDIR)/tests
+	$(CC) $(CFLAGS) -o $@ $(TESTS) $(MODSRC) $(COMPAT) $(MOCKS)
+
+.PHONY: test clean
+test: $(BIN)
+	ASAN_OPTIONS=detect_leaks=0 $(BIN)
+clean:
+	rm -f $(BIN)

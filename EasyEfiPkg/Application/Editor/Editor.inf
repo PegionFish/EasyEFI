@@ -1,0 +1,25 @@
+## Editor STUB 应用（S00 脚手架）
+[Defines]
+  INF_VERSION    = 0x0001001b
+  BASE_NAME      = Editor
+  FILE_GUID      = 20D52215-8B27-40C2-9C0F-CF3F7CD67650
+  MODULE_TYPE    = UEFI_APPLICATION
+  VERSION_STRING = 0.1
+  ENTRY_POINT    = UefiMain
+
+[Sources]
+  EditorStub.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  EasyEfiPkg/EasyEfiPkg.dec
+
+[LibraryClasses]
+  UefiApplicationEntryPoint
+  UefiLib
+  UefiBootServicesTableLib
+  PrintLib
+
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = -DUEFI_BUILD

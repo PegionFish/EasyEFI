@@ -1,0 +1,11 @@
+.git
+.deps
+.worktrees
+Build
+Conf
+build
+firmware
+*.img
+*.fd
+docs
+tests

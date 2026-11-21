@@ -1,0 +1,25 @@
+## FileManager STUB 应用（S00 脚手架）
+[Defines]
+  INF_VERSION    = 0x0001001b
+  BASE_NAME      = FileManager
+  FILE_GUID      = BD5E675C-FF01-4C66-9837-707C4758B365
+  MODULE_TYPE    = UEFI_APPLICATION
+  VERSION_STRING = 0.1
+  ENTRY_POINT    = UefiMain
+
+[Sources]
+  FileManagerStub.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  EasyEfiPkg/EasyEfiPkg.dec
+
+[LibraryClasses]
+  UefiApplicationEntryPoint
+  UefiLib
+  UefiBootServicesTableLib
+  PrintLib
+
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = -DUEFI_BUILD

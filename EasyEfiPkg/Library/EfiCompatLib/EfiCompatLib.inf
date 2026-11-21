@@ -1,0 +1,21 @@
+## EfiCompatLib — 内存抽象 UEFI 后端
+[Defines]
+  INF_VERSION    = 0x0001001b
+  BASE_NAME      = EfiCompatLib
+  FILE_GUID      = D66F73B3-E301-4B2B-A4CB-5AFC22EA3610
+  MODULE_TYPE    = BASE
+  VERSION_STRING = 1.0
+  LIBRARY_CLASS  = EfiCompatLib
+
+[Sources]
+  EfiMem.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  EasyEfiPkg/EasyEfiPkg.dec
+
+[LibraryClasses]
+  MemoryAllocationLib
+
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = -DUEFI_BUILD
