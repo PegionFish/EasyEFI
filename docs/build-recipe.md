@@ -73,9 +73,11 @@ bash scripts/qemu-run.sh --arch x64 --image test.img --expect expect.txt --timeo
 - [x] 宿主框架自检 4/4 通过（ASan/UBSan 干净）
 - [x] easyefi-build 镜像构建成功（BaseTools 含 brotli；共享 edk2 内 BaseTools 已编译）
 - [x] 双 worktree 并行构建两个不同模块成功（wt-A Utf8Lib.lib / wt-B TuiScreenLib.lib，独立 Conf/Build）
-- [ ] Shell X64/AA64 构建成功（ShellPkg，GCC）
-- [ ] stub Launcher X64/AA64 构建成功
-- [ ] 最小 fat 镜像 QEMU 双架构引导 → `[STUB] Launcher <arch>` 标记命中
+- [x] Shell X64/AA64 构建成功（ShellPkg，GCC）
+- [x] stub Launcher X64/AA64 构建成功
+- [x] 最小 fat 镜像 QEMU 双架构引导 → `[STUB] Launcher <arch>` 标记命中（2026-11-22 双 PASS）
+
+**S00 验收通过，Wave 1 派发就绪。**
 
 ## 追加踩坑记录（S00 实证）
 

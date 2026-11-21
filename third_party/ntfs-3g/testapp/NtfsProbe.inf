@@ -1,0 +1,31 @@
+## @file
+#  S14 冒烟探针：枚举 SimpleFileSystem 卷并断言 NTFS TOOLKIT 可见。
+#  SPDX-License-Identifier: GPL-3.0-or-later
+##
+
+[Defines]
+  INF_VERSION    = 0x00010005
+  BASE_NAME      = NtfsProbe
+  FILE_GUID      = FAC40CB0-6686-48E3-91EE-C4424D5EA3FF
+  MODULE_TYPE    = UEFI_APPLICATION
+  VERSION_STRING = 1.0
+  ENTRY_POINT    = NtfsProbeMain
+
+[Sources]
+  NtfsProbe.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  UefiApplicationEntryPoint
+  UefiLib
+  BaseLib
+  MemoryAllocationLib
+  UefiBootServicesTableLib
+
+[Protocols]
+  gEfiSimpleFileSystemProtocolGuid
+
+[Guids]
+  gEfiFileSystemVolumeLabelInfoIdGuid
