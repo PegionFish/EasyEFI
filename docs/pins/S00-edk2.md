@@ -7,9 +7,12 @@
 - 信任校验：克隆 HEAD == GitHub 官方 tag SHA（api.github.com/repos/tianocore/edk2/git/ref/tags/edk2-stable202608）✅
 - 位置：`~/.cache/easyefi/edk2/`（**仓库树外**——在 WORKSPACE 内会触发 edk2 包路径
   case-mismatch 检查，S00 实证；gitignored 约定不再适用，直接外置）
-- 子模块：BaseTools/BrotliCompress 与 MdeModulePkg/BrotliCustomDecompressLib 所需 brotli，
-  锁定 commit `e230f474b87134e8c6c85b630084c612057f253e`（google/brotli，codeload tarball 填充）。
-  其余子模块（openssl 等）本项目构建不需要。
+- 子模块（浅克隆不含，按锁定 commit 用 codeload tarball 填充）：
+  - BaseTools/BrotliCompress 与 MdeModulePkg/BrotliCustomDecompressLib 所需 brotli：
+    `e230f474b87134e8c6c85b630084c612057f253e`（google/brotli）
+  - MdePkg/Library/MipiSysTLib/mipisyst（MdePkg.dec [Includes] 无条件引用，缺则 error 000E）：
+    `370b5944c046bab043dd8b133727b2135af7747a`（MIPI-Alliance/public-mipi-sys-t）
+  其余子模块（openssl 等）本项目构建不需要。已扫描全部相关包 .dec [Includes] 确认无其它缺失。
 - 锁定树实测路径修正（相对设计文档假设）：
   - Ucs2Utf8Lib 实例 = `RedfishPkg/Library/BaseUcs2Utf8Lib/BaseUcs2Utf8Lib.inf`
   - RedfishCrtLib 实例 = `RedfishPkg/PrivateLibrary/RedfishCrtLib/RedfishCrtLib.inf`
