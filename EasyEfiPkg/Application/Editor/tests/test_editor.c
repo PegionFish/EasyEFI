@@ -217,6 +217,26 @@ TEST (t13_4_exit_three_keys) {
   ASSERT_EQ (EdState (E), ED_DONE);
   ASSERT_EQ (EdExitCode (E), 0);
   EdFree (E);
+
+  /* (e) 未命名新文件：修改 → F10 → S → 另存为输入 → 保存并退出 */
+  E = NewEd (Fs, 262144);
+  EdRender (E);
+  ASSERT_TRUE (RowHas (23, "<new>"));
+  PushStr ("new");
+  PushScan (SCAN_F10);
+  PushChar ((CHAR16)'S');
+  EdRun (E);
+  ASSERT_EQ (EdState (E), ED_SAVEAS);
+  PushStr ("fs0:/fresh.nsh");
+  PushChar ((CHAR16)0x0D);   /* ENTER */
+  EdRun (E);
+  ASSERT_EQ (EdState (E), ED_DONE);
+  ASSERT_EQ (EdExitCode (E), 0);
+  Len = sizeof (Buf);
+  ReadFileBytes (Fs, U16 ("fs0:/fresh.nsh"), Buf, &Len);
+  ASSERT_EQ (Len, 3);
+  if (Len == 3) ASSERT_MEM_EQ (Buf, "new", 3);
+  EdFree (E);
   Fs->Destroy (Fs);
 }
 
@@ -418,6 +438,23 @@ TEST (t13_9_save_as) {
   PushScan (SCAN_ESC);
   EdRun (E);
   ASSERT_EQ (EdState (E), ED_EDIT);
+  EdFree (E);
+
+  /* 未命名新文件 F2 → 另存为输入 */
+  E = NewEd (Fs, 262144);
+  PushStr ("hi");
+  PushScan (SCAN_F2);
+  EdRun (E);
+  ASSERT_EQ (EdState (E), ED_SAVEAS);
+  PushStr ("fs0:/c.nsh");
+  PushChar ((CHAR16)0x0D);   /* ENTER */
+  EdRun (E);
+  ASSERT_EQ (EdState (E), ED_EDIT);
+  ASSERT_TRUE (EfiStrCmp (EdPath (E), U16 ("fs0:/c.nsh")) == 0);
+  Len = sizeof (Buf);
+  ReadFileBytes (Fs, U16 ("fs0:/c.nsh"), Buf, &Len);
+  ASSERT_EQ (Len, 2);
+  if (Len == 2) ASSERT_MEM_EQ (Buf, "hi", 2);
   EdFree (E);
   Fs->Destroy (Fs);
 }
