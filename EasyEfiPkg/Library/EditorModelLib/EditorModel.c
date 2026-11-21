@@ -806,3 +806,15 @@ EFI_STATUS ModelRenderRow (EDITOR_MODEL *M, UINTN Line, UINTN ColStart, UINTN Wi
   }
   return EFI_SUCCESS;
 }
+
+/* 指定位置 token（S13 状态栏 U+XXXX 显示用；契约 01efe65 批准新增）。
+   越界（行/列超范围，含列=行长的行尾插入位）→ EFI_NOT_FOUND。 */
+EFI_STATUS ModelTokenAt (EDITOR_MODEL *M, UINTN Line, UINTN Col, UTF8_TOKEN *Out) {
+  MODEL_LINE *L;
+  if (!M || !Out) return EFI_INVALID_PARAMETER;
+  if (Line >= M->LineCount) return EFI_NOT_FOUND;
+  L = &M->Lines[Line];
+  if (Col >= L->Count) return EFI_NOT_FOUND;
+  CopyBytes (Out, &L->Toks[Col], sizeof (UTF8_TOKEN));
+  return EFI_SUCCESS;
+}
