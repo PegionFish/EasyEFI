@@ -12,6 +12,8 @@
     `e230f474b87134e8c6c85b630084c612057f253e`（google/brotli）
   - MdePkg/Library/MipiSysTLib/mipisyst（MdePkg.dec [Includes] 无条件引用，缺则 error 000E）：
     `370b5944c046bab043dd8b133727b2135af7747a`（MIPI-Alliance/public-mipi-sys-t）
+  - RedfishPkg/Library/JsonLib/jansson（JsonLib UEFI 构建必需，S03 填充）：
+    `e9ebfa7`（jansson 2.13.1）；宿主测试同源原生编译（双适配器同构基准）。
   其余子模块（openssl 等）本项目构建不需要。已扫描全部相关包 .dec [Includes] 确认无其它缺失。
 - 锁定树实测路径修正（相对设计文档假设）：
   - Ucs2Utf8Lib 实例 = `RedfishPkg/Library/BaseUcs2Utf8Lib/BaseUcs2Utf8Lib.inf`
