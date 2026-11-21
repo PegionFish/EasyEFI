@@ -16,7 +16,7 @@ RUN sed -i 's|http://ports.ubuntu.com/ubuntu-ports|http://mirrors.aliyun.com/ubu
     && rm -rf /var/lib/apt/lists/*
 COPY edk2 /edk2
 RUN make -C /edk2/BaseTools
-ENV GCC5_X64_PREFIX=x86_64-linux-gnu- \
-    GCC5_AARCH64_PREFIX=aarch64-linux-gnu- \
+ENV GCC_BIN=x86_64-linux-gnu- \
+    GCC_AARCH64_PREFIX=aarch64-linux-gnu- \
     EDK2_PATH=/edk2
 WORKDIR /work

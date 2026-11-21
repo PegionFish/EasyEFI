@@ -21,5 +21,5 @@ docker run --rm \
     export CONF_PATH=/work/Conf
     mkdir -p /work/Conf
     source /edk2/edksetup.sh --reconfig >/dev/null 2>&1
-    build -p "$DSC" -m "$MODULE" -a "$ARCH" -t GCC5 -b RELEASE $EXTRA
+    build -p "$DSC" -m "$MODULE" -a "$ARCH" -t GCC -b RELEASE $EXTRA
   '
