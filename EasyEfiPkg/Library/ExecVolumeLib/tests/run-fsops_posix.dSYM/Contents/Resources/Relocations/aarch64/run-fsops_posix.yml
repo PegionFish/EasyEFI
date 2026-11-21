@@ -1,5 +1,0 @@
----
-triple:          'arm64-apple-darwin'
-binary-path:     '/Users/bob/EasyEFI/.worktrees/S09/EasyEfiPkg/Library/ExecVolumeLib/tests/run-fsops_posix'
-relocations:     []
-...
