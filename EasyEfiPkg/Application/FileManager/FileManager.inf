@@ -26,6 +26,7 @@
   DevicePathLib
   PcdLib
   EfiCompatLib
+  VolumeModelLib
   TuiScreenLib
   TuiInputLib
   ExecVolumeLib
@@ -34,6 +35,7 @@
 [Protocols]
   gEfiShellProtocolGuid
   gEfiLoadedImageProtocolGuid
+  gEfiDevicePathProtocolGuid
 
 [Guids]
   ## S09 ExecVolumeLib.inf [Guids] 缺此 GUID（VolUefi.c 使用）；消费模块暂自声明，

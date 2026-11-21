@@ -17,6 +17,7 @@
 #include "Contract/TuiScreen.h"
 #include "Contract/TuiInput.h"
 #include "Contract/FsOps.h"
+#include "Contract/VolumeModel.h"
 #include "FmCore.h"
 
 typedef struct {
@@ -35,7 +36,11 @@ typedef struct {
   FM_PLATFORM_OPS     Ops;
 } FM_GLUE;
 
-/* Shell 映射名（fsN:）；无 Shell/无映射 → 空串（S11 同款） */
+/* Shell 映射名（fsN:）；无 Shell/无映射 → 空串。
+   注意（S12 冒烟实证）：GetMapFromDevicePath 返回值经 AddBufferToFreeList
+   注册进 Shell 的延迟释放链表——**调用方不得 FreePool**（提前释放会让 Shell
+   脚本清理 FreeBufferList 踩 0xAF 毒化内存 → Synchronous Exception）。
+   返回串可能含别名（"FS0:;HD0a0b:;BLK1:"），取首个 ';' 前的主映射名。 */
 STATIC VOID MapName (FM_GLUE *G, CONST UINT8 *Dp, CHAR16 *Out, UINTN Cap) {
   EFI_DEVICE_PATH_PROTOCOL *Tmp;
   CONST CHAR16 *Map;
@@ -45,9 +50,8 @@ STATIC VOID MapName (FM_GLUE *G, CONST UINT8 *Dp, CHAR16 *Out, UINTN Cap) {
   Tmp = (EFI_DEVICE_PATH_PROTOCOL *)Dp;
   Map = G->Shell->GetMapFromDevicePath (&Tmp);
   if (Map == NULL) return;
-  for (i = 0; Map[i] != 0 && i + 1 < Cap; i++) Out[i] = Map[i];
+  for (i = 0; Map[i] != 0 && Map[i] != L';' && i + 1 < Cap; i++) Out[i] = Map[i];
   Out[i] = 0;
-  FreePool ((VOID *)Map);
 }
 
 /* 截断至首个 MEDIA_HARDDRIVE_DP（含）→ 分区 DP（S11 同款） */
@@ -94,6 +98,35 @@ STATIC EFI_STATUS RefreshVolumes (FM_GLUE *G) {
     for (i = 0; i < G->VolCount; i++) {
       G->FsNames[i] = G->NameBuf + i * 16;
       MapName (G, G->Vols[i].Dp, (CHAR16 *)G->FsNames[i], 16);
+    }
+    /* S09 VolSortMark 的 OwnBootDp 取 LoadedImage->FilePath——Shell 启动的应用
+       FilePath 可能仅文件节点（无 HD）→ IsP3 标记失效（S12 冒烟实证）。
+       glue 用 DeviceHandle 来源卷 DP 重标记（S10 实证同款身份）；S09 修复后
+       此段为冗余 no-op。标记文件判定与 S09 FsHasMarker 一致（.easyefi/launcher.json）。 */
+    if (G->BootPartDp != NULL) {
+      for (i = 0; i < G->VolCount; i++) {
+        FS_ENTRY ent;
+        BOOLEAN Marker = FALSE;
+        if (!EFI_ERROR (G->Vols[i].Fs->Info (G->Vols[i].Fs, L".easyefi", &ent)) ||
+            !EFI_ERROR (G->Vols[i].Fs->Info (G->Vols[i].Fs, L"launcher.json", &ent))) {
+          Marker = TRUE;
+        }
+        G->Vols[i].IsP3 = (BOOLEAN)(VolIsP3 (G->BootPartDp, G->BootPartDpLen,
+                                             G->Vols[i].Dp, G->Vols[i].DpLen) && Marker);
+      }
+      /* P3 置首（对齐 S09 VolSortMark 意图；重标记在其排序之后，需补排序）。
+         同盘分区3唯一 → 至多一个 P3，单次交换即稳定。 */
+      for (i = 1; i < G->VolCount; i++) {
+        if (G->Vols[i].IsP3 && !G->Vols[0].IsP3) {
+          VOLUME_INFO Tv = G->Vols[0];
+          CONST CHAR16 *Tn = G->FsNames[0];
+          G->Vols[0] = G->Vols[i];
+          G->FsNames[0] = G->FsNames[i];
+          G->Vols[i] = Tv;
+          G->FsNames[i] = Tn;
+          break;
+        }
+      }
     }
   }
   G->Init.Vols = G->Vols;
@@ -160,11 +193,16 @@ EFI_STATUS EFIAPI UefiMain (IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABLE *Syst
   gBS->SetWatchdogTimer (0, 0, 0, NULL);
   gBS->LocateProtocol (&gEfiShellProtocolGuid, NULL, (VOID **)&G.Shell);
 
-  /* 启动盘身份：自身 LoadedImage 设备路径截断至分区 */
+  /* 启动盘身份 = 自身 LoadedImage 来源卷（DeviceHandle）的设备路径（S10 实证同款）。
+     注意：Shell 启动的应用 LoadedImage->FilePath 可能仅含文件节点
+     （\EFI\Apps\x.efi，无 HD 节点，S12 冒烟实证）——不可用作启动盘身份。 */
   if (!EFI_ERROR (gBS->HandleProtocol (ImageHandle, &gEfiLoadedImageProtocolGuid, (VOID **)&Li)) &&
-      Li->FilePath != NULL) {
-    G.BootPartDp = TrimToPartition ((CONST UINT8 *)Li->FilePath,
-                                    GetDevicePathSize (Li->FilePath), &G.BootPartDpLen);
+      Li->DeviceHandle != NULL) {
+    EFI_DEVICE_PATH_PROTOCOL *SrcDp = NULL;
+    if (!EFI_ERROR (gBS->HandleProtocol (Li->DeviceHandle, &gEfiDevicePathProtocolGuid, (VOID **)&SrcDp)) &&
+        SrcDp != NULL) {
+      G.BootPartDp = TrimToPartition ((CONST UINT8 *)SrcDp, GetDevicePathSize (SrcDp), &G.BootPartDpLen);
+    }
   }
 
   Print (L"[S12] FileManager start\n");
@@ -175,6 +213,13 @@ EFI_STATUS EFIAPI UefiMain (IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABLE *Syst
   }
 
   RefreshVolumes (&G);
+  {
+    UINTN i;
+    for (i = 0; i < G.VolCount; i++) {
+      Print (L"[S12] vol %u label=%s P3=%u map=%s\n", i, G.Vols[i].Label,
+             (UINTN)G.Vols[i].IsP3, G.FsNames ? G.FsNames[i] : L"");
+    }
+  }
   G.Init.EditorPath = G.EditorPath;
   G.Init.ShellPath = G.ShellPath;
   G.Init.PreviewMaxBytes = PcdGet32 (PcdPreviewMaxBytes);
@@ -201,7 +246,8 @@ EFI_STATUS EFIAPI UefiMain (IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABLE *Syst
   FmCoreFree (C);
   TuiShutdown ();
   FreeVolumes (&G);
-  MemFree (G.BootPartDp);
+  FreePool (G.BootPartDp);   /* TrimToPartition 用 AllocateCopyPool（裸池）——须 FreePool，
+                                不可 MemFree（EfiMem 隐藏头会偏移 16 字节 → 池头损坏） */
   Print (L"[S12] FileManager exit\n");
   return EFI_SUCCESS;
 }
