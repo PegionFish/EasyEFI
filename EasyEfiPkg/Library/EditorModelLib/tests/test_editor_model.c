@@ -422,6 +422,30 @@ TEST (t02_6_goto_clamp) {
   ASSERT_OK (ModelSetCursor (M, 0, 100));
   ASSERT_OK (ModelInfo (M, &Info));
   ASSERT_EQ (Info.CursorCol, 3);
+  /* ModelTokenAt（契约 01efe65 批准新增；S13 状态栏 U+XXXX 用） */
+  {
+    UTF8_TOKEN Tok;
+    ASSERT_OK (ModelTokenAt (M, 0, 0, &Tok));
+    ASSERT_EQ (Tok.Type, UTF8_TOKEN_CP);
+    ASSERT_EQ (Tok.Cp, 0x4E2D);
+    ASSERT_OK (ModelTokenAt (M, 0, 1, &Tok));
+    ASSERT_EQ (Tok.Cp, 0x6587);
+    ASSERT_OK (ModelTokenAt (M, 0, 2, &Tok));
+    ASSERT_EQ (Tok.Cp, 'x');
+    ASSERT_EQ (ModelTokenAt (M, 0, 3, &Tok), EFI_NOT_FOUND);   /* 行尾插入位无 token */
+    ASSERT_EQ (ModelTokenAt (M, 99, 0, &Tok), EFI_NOT_FOUND);
+    ASSERT_EQ (ModelTokenAt (M, 0, 99, &Tok), EFI_NOT_FOUND);
+    ASSERT_EQ (ModelTokenAt (NULL, 0, 0, &Tok), EFI_INVALID_PARAMETER);
+    ASSERT_EQ (ModelTokenAt (M, 0, 0, NULL), EFI_INVALID_PARAMETER);
+    /* RAW 字节原样可查（非法 UTF-8 不透明） */
+    {
+      UINT8 Bad[] = { 'a', 0xFF };
+      LoadBytes (M, Bad, sizeof (Bad));
+      ASSERT_OK (ModelTokenAt (M, 0, 1, &Tok));
+      ASSERT_EQ (Tok.Type, UTF8_TOKEN_RAW);
+      ASSERT_EQ (Tok.Raw, 0xFF);
+    }
+  }
   ModelFree (M);
 }
 
