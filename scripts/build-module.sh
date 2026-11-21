@@ -18,6 +18,7 @@ docker run --rm \
     export WORKSPACE=/work
     export PACKAGES_PATH=/edk2:/work
     export EDK_TOOLS_PATH=/edk2/BaseTools
+    export CONF_PATH=/work/Conf
     source /edk2/edksetup.sh --reconfig >/dev/null 2>&1
     build -p "$DSC" -m "$MODULE" -a "$ARCH" -t GCC5 -b RELEASE $EXTRA
   '

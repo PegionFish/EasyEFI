@@ -28,6 +28,8 @@ bash scripts/qemu-run.sh --arch x64 --image test.img --expect expect.txt --timeo
 注意：
 - worktree 内 `edk2/` 不存在（gitignored）→ 必须传 `EDK2_DIR` 指向主仓库的共享 edk2。
 - 容器挂载：worktree → /work，共享 edk2 → /edk2:ro。每流独立 Conf/Build，互不干扰。
+- **CONF_PATH 必须显式设为 /work/Conf**（build-module.sh 已内置）：edksetup.sh 默认把 Conf 放进
+  edk2 树（$EDK_TOOLS_PATH/../Conf），只读挂载下会静默失败（S00 实证踩坑）。
 - 并发 QEMU ≤4（各 2GB）；宿主测试不限。
 - 设计文档/任务书在主仓库 `docs/`（未入库），worktree 内用绝对路径引用。
 
