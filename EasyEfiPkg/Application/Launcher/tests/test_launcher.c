@@ -166,7 +166,7 @@ TEST (t11_2_exec_params) {
   Key (C, 0, 0x0D);                                   /* Enter */
   ASSERT_EQ (MockExecCount (), 1);
   ASSERT_EQ (MockExecCall (0)->Kind, 1);              /* ExecEfi */
-  ASSERT_EQ (EfiStrCmp (MockExecCall (0)->Path, U16("fs2:/entries/winpe.efi")), 0);
+  ASSERT_EQ (EfiStrCmp (MockExecCall (0)->Path, U16("entries/winpe.efi")), 0);
   ASSERT_EQ (EfiStrCmp (MockExecCall (0)->Options, U16("arg1 arg2")), 0);
   ASSERT_EQ (LauncherCoreState (C), LSTATE_MENU);     /* 正常返回 → 回菜单 */
   ASSERT_EQ (LauncherCoreExit (C), LEXIT_NONE);
@@ -198,7 +198,7 @@ TEST (t11_3_danger_confirm) {
   Chr (C, 'y');                                       /* Y 执行 */
   ASSERT_EQ (MockExecCount (), 1);
   ASSERT_EQ (MockExecCall (0)->Kind, 1);
-  ASSERT_EQ (EfiStrCmp (MockExecCall (0)->Path, U16("fs2:/tools/flash.efi")), 0);
+  ASSERT_EQ (EfiStrCmp (MockExecCall (0)->Path, U16("tools/flash.efi")), 0);
   ASSERT_EQ (LauncherCoreState (C), LSTATE_MENU);
   /* ESC 取消 + Enter 默认 N */
   Key (C, 0, 0x0D);
@@ -237,7 +237,7 @@ TEST (t11_4_degraded) {
   ASSERT_EQ (LauncherCoreSelected (C), 2);
   Key (C, 0, 0x0D);
   ASSERT_EQ (MockExecCount (), 1);                    /* 系统项可用 */
-  ASSERT_EQ (EfiStrCmp (MockExecCall (0)->Path, U16("fs0:/EFI/Apps/FileManager.efi")), 0);
+  ASSERT_EQ (EfiStrCmp (MockExecCall (0)->Path, U16("EFI/Apps/FileManager.efi")), 0);
   LauncherCoreFree (C);
   CfgFree (Cfg);
   FixtureFini ();
@@ -320,7 +320,7 @@ TEST (t11_7_arch_disabled) {
   ASSERT_EQ (LauncherCoreSelected (C), 1);
   Key (C, 0, 0x0D);                                   /* Enter 执行的是 FileManager */
   ASSERT_EQ (MockExecCount (), 1);
-  ASSERT_EQ (EfiStrCmp (MockExecCall (0)->Path, U16("fs0:/EFI/Apps/FileManager.efi")), 0);
+  ASSERT_EQ (EfiStrCmp (MockExecCall (0)->Path, U16("EFI/Apps/FileManager.efi")), 0);
   LauncherCoreFree (C);
   CfgFree (Cfg);
   FixtureFini ();
@@ -366,7 +366,7 @@ TEST (t11_8_reload) {
   /* 重载后执行新条目 */
   Key (C, 0, 0x0D);
   ASSERT_EQ (MockExecCount (), 1);
-  ASSERT_EQ (EfiStrCmp (MockExecCall (0)->Path, U16("fs2:/b.efi")), 0);
+  ASSERT_EQ (EfiStrCmp (MockExecCall (0)->Path, U16("b.efi")), 0);
   LauncherCoreFree (C);
   CfgFree (g_reloadNewCfg);
   g_reloadNewCfg = NULL;
@@ -467,10 +467,10 @@ TEST (extra_auto_candidates) {
            ACTION_EXEC, ARCH_X64_BIT, FALSE, FALSE, "copt");
   memset (Cands, 0, sizeof (Cands));
   u16cpy (Cands[0].Display, 128, U16("KINGSTON: BOOTX64.EFI"));
-  u16cpy (Cands[0].FullPath, 512, U16("fs3:/EFI/BOOT/BOOTX64.EFI"));
+  u16cpy (Cands[0].FullPath, 512, U16("\\EFI\\BOOT\\BOOTX64.EFI"));
   Cands[0].Fs = g_bootfs;
   u16cpy (Cands[1].Display, 128, U16("SANCRUZER: BOOTX64.EFI"));
-  u16cpy (Cands[1].FullPath, 512, U16("fs4:/EFI/BOOT/BOOTX64.EFI"));
+  u16cpy (Cands[1].FullPath, 512, U16("\\EFI\\BOOT\\BOOTX64.EFI"));
   Cands[1].Fs = g_p3fs;
   MockExecSetCandidates (Cands, 2);
   C = CoreNew (Cfg, TRUE, 0, NULL);
@@ -484,7 +484,7 @@ TEST (extra_auto_candidates) {
   Key (C, 0, 0x0D);
   ASSERT_EQ (MockExecCount (), 1);
   ASSERT_EQ (MockExecCall (0)->Kind, 1);
-  ASSERT_EQ (EfiStrCmp (MockExecCall (0)->Path, U16("fs4:/EFI/BOOT/BOOTX64.EFI")), 0);
+  ASSERT_EQ (EfiStrCmp (MockExecCall (0)->Path, U16("\\EFI\\BOOT\\BOOTX64.EFI")), 0);
   ASSERT_EQ (EfiStrCmp (MockExecCall (0)->Options, U16("copt")), 0);  /* 原条目 options 保留 */
   ASSERT_EQ (LauncherCoreState (C), LSTATE_MENU);
   /* ESC 取消路径 */
@@ -509,10 +509,23 @@ TEST (extra_auto_candidates) {
 }
 
 /* ---- 附加：fsN: / boot:XXXX / shell / reset 动作 ---- */
+static UINTN g_fsByIndexCalls = 0;
+static EFI_STATUS FsByIndexMock (VOID *Ctx, UINTN Index, FS_OPS **Fs) {
+  g_fsByIndexCalls++;
+  if (Index != 7) {
+    return EFI_NOT_FOUND;
+  }
+  *Fs = g_p3fs;
+  return EFI_SUCCESS;
+}
+
 TEST (extra_action_variants) {
   CONFIG *Cfg;
   LAUNCHER_CORE *C;
+  LAUNCHER_PLATFORM_OPS Ops;
   FixtureInit ();
+  memset (&Ops, 0, sizeof (Ops));
+  Ops.FsByIndex = FsByIndexMock;
   Cfg = CfgNew ("T", "1.0", 4);
   ItemSet (&Cfg->Items[0], "fs", "Explicit vol", "", "fs7:/tool.efi",
            ACTION_EXEC, ARCH_X64_BIT, FALSE, FALSE, "");
@@ -522,10 +535,11 @@ TEST (extra_action_variants) {
            ACTION_SHELL, ARCH_X64_BIT, FALSE, FALSE, "");
   ItemSet (&Cfg->Items[3], "rst", "Reset", "", "",
            ACTION_RESET, ARCH_X64_BIT, FALSE, FALSE, "");
-  C = CoreNew (Cfg, TRUE, 0, NULL);
-  Key (C, 0, 0x0D);                                   /* fs7: */
+  C = CoreNew (Cfg, TRUE, 0, &Ops);
+  Key (C, 0, 0x0D);                                   /* fs7: → FsByIndex 解析活卷 + 根相对 */
+  ASSERT_EQ (g_fsByIndexCalls, 1);
   ASSERT_EQ (MockExecCount (), 1);
-  ASSERT_EQ (EfiStrCmp (MockExecCall (0)->Path, U16("fs7:/tool.efi")), 0);
+  ASSERT_EQ (EfiStrCmp (MockExecCall (0)->Path, U16("tool.efi")), 0);
   Chr (C, '2');
   Key (C, 0, 0x0D);                                   /* boot:000A */
   ASSERT_EQ (MockExecCount (), 2);
@@ -547,6 +561,63 @@ TEST (extra_action_variants) {
   ASSERT_EQ (MockExecCount (), 3);
   ASSERT_EQ (MockExecCall (2)->Kind, 4);              /* ExecReset */
   ASSERT_EQ (LauncherCoreExit (C), LEXIT_RESET);
+  LauncherCoreFree (C);
+  CfgFree (Cfg);
+  FixtureFini ();
+}
+
+/* ---- 附加：AutoVol 回调路径（UEFI 形态：候选 Fs 悬空不可信，glue 解析活卷） ---- */
+static UINTN g_autoVolCalls = 0;
+static EFI_STATUS AutoVolMock (VOID *Ctx, CONST CHAR16 *RelPath, CONST CHAR16 *Display,
+                               FS_OPS **Fs, CHAR16 *FsName, UINTN FsNameCap) {
+  g_autoVolCalls++;
+  *Fs = g_bootfs;                                     /* 活卷（mock） */
+  u16cpy (FsName, FsNameCap, U16("fs4:"));
+  return EFI_SUCCESS;
+}
+
+TEST (extra_autovol_callback) {
+  CONFIG *Cfg;
+  LAUNCHER_CORE *C;
+  LAUNCHER_PLATFORM_OPS Ops;
+  static EXEC_CANDIDATE Cands[2];
+  FixtureInit ();
+  memset (&Ops, 0, sizeof (Ops));
+  Ops.AutoVol = AutoVolMock;
+  Cfg = CfgNew ("T", "1.0", 2);
+  ItemSet (&Cfg->Items[0], "usb", "USB boot", "", "auto:/EFI/BOOT/BOOTX64.EFI",
+           ACTION_EXEC, ARCH_X64_BIT, FALSE, FALSE, "uo");
+  ItemSet (&Cfg->Items[1], "us", "USB script", "", "auto:/scripts/t.nsh",
+           ACTION_EXEC, ARCH_X64_BIT, FALSE, FALSE, "");
+  memset (Cands, 0, sizeof (Cands));
+  u16cpy (Cands[0].Display, 128, U16("KINGSTON: \\EFI\\BOOT\\BOOTX64.EFI"));
+  u16cpy (Cands[0].FullPath, 512, U16("\\EFI\\BOOT\\BOOTX64.EFI"));
+  Cands[0].Fs = (FS_OPS *)(UINTN)0xDEAD;              /* 悬空毒化：core 不得解引用 */
+  u16cpy (Cands[1].Display, 128, U16("KINGSTON: \\scripts\\t.nsh"));
+  u16cpy (Cands[1].FullPath, 512, U16("\\scripts\\t.nsh"));
+  Cands[1].Fs = (FS_OPS *)(UINTN)0xDEAD;
+  MockExecSetCandidates (Cands, 2);
+  g_autoVolCalls = 0;
+  C = CoreNew (Cfg, TRUE, 0, &Ops);
+  Key (C, 0, 0x0D);                                   /* 多候选 → 选择态 */
+  ASSERT_EQ (LauncherCoreState (C), LSTATE_CANDIDATES);
+  Key (C, 0, 0x0D);                                   /* 选候选0 → AutoVol 解析 */
+  ASSERT_EQ (g_autoVolCalls, 1);
+  ASSERT_EQ (MockExecCount (), 1);
+  ASSERT_EQ (MockExecCall (0)->Kind, 1);
+  ASSERT_EQ (EfiStrCmp (MockExecCall (0)->Path, U16("\\EFI\\BOOT\\BOOTX64.EFI")), 0);
+  ASSERT_EQ (EfiStrCmp (MockExecCall (0)->Options, U16("uo")), 0);
+  /* 脚本候选：FsName + 根相对 → fsN: 全限定 ExecNsh */
+  Chr (C, '2');
+  Key (C, 0, 0x0D);
+  ASSERT_EQ (LauncherCoreState (C), LSTATE_CANDIDATES);
+  Key (C, SCAN_DOWN, 0);                              /* 选候选1（脚本） */
+  Key (C, 0, 0x0D);
+  ASSERT_EQ (g_autoVolCalls, 2);
+  ASSERT_EQ (MockExecCount (), 2);
+  ASSERT_EQ (MockExecCall (1)->Kind, 2);
+  ASSERT_EQ (EfiStrCmp (MockExecCall (1)->Path, U16("fs4:/scripts/t.nsh")), 0);
+  MockExecSetCandidates (NULL, 0);
   LauncherCoreFree (C);
   CfgFree (Cfg);
   FixtureFini ();
@@ -759,6 +830,7 @@ int main (void) {
   RUN_TEST (t11_9_boot_submenu);
   RUN_TEST (t11_10_nsh_params);
   RUN_TEST (extra_auto_candidates);
+  RUN_TEST (extra_autovol_callback);
   RUN_TEST (extra_action_variants);
   RUN_TEST (extra_exec_errors);
   RUN_TEST (extra_help_page);
