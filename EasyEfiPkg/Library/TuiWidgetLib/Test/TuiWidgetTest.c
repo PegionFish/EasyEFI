@@ -56,7 +56,11 @@ EFI_STATUS EFIAPI UefiMain (IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABLE *Syst
     return EFI_ABORTED;
   }
   DrawFrame (L);
-  TuiFlush ();
+  Status = TuiFlush ();
+  if (EFI_ERROR (Status)) {
+    Print (L"[S08] FAIL flush=%r\n", Status);
+    Failed = TRUE;
+  }
   Print (L"[S08] ready\n");
   Print (L"[S08] sel %u\n", (UINTN)ListSelected (L));   /* 初始 0 */
 
@@ -74,7 +78,11 @@ EFI_STATUS EFIAPI UefiMain (IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABLE *Syst
       Failed = TRUE;
     }
     DrawFrame (L);
-    TuiFlush ();
+    Status = TuiFlush ();
+    if (EFI_ERROR (Status)) {
+      Print (L"[S08] FAIL flush=%r\n", Status);
+      Failed = TRUE;
+    }
     Print (L"[S08] sel %u\n", (UINTN)ListSelected (L));
     if (ListSelected (L) != mExpectedSel[i]) {
       Print (L"[S08] FAIL seq=%u want=%u\n", (UINTN)i, (UINTN)mExpectedSel[i]);
