@@ -22,5 +22,9 @@ docker run --rm \
     export CONF_PATH=/work/Conf
     mkdir -p /work/Conf
     source /edk2/edksetup.sh --reconfig >/dev/null 2>&1
-    build -p "$DSC" -m "$MODULE" -a "$ARCH" -t GCC -b RELEASE $EXTRA
+    if grep -q "LIBRARY_CLASS" "/work/$MODULE"; then
+      build -p "$MODULE" -a "$ARCH" -t GCC -b RELEASE $EXTRA
+    else
+      build -p "$DSC" -m "$MODULE" -a "$ARCH" -t GCC -b RELEASE $EXTRA
+    fi
   '

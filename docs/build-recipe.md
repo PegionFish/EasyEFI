@@ -36,6 +36,11 @@ bash scripts/qemu-run.sh --arch x64 --image test.img --expect expect.txt --timeo
 - **工具链标签 = GCC（不是 GCC5）**：edk2-stable202608 已移除 GCC5（tools_def 3.06）。
   前缀环境变量：X64=`GCC_BIN`，AA64=`GCC_AARCH64_PREFIX`（镜像已设）。上游文档里的
   `-t GCC5`/`GCC5_*_PREFIX` 一律按此替换（含 ntfs-3g 构建）。
+- **BaseTools 必须在共享 edk2 内编译**（运行时 :ro 挂载会遮蔽镜像内预编译版本）：
+  一次性 `docker run --rm -v ~/.cache/easyefi/edk2:/edk2 easyefi-build make -C /edk2/BaseTools`。
+  缺 GenFw 等工具时报 "Unable to find the real 'GenFw'"（S00 实证踩坑）。
+- **edk2 子模块按需填充**（浅克隆不含）：brotli×2 + mipisyst，锁定 commit 见 docs/pins/S00-edk2.md；
+  MdePkg.dec 无条件引用 mipisyst 头文件路径，缺则 error 000E。
 - 并发 QEMU ≤4（各 2GB）；宿主测试不限。
 - 设计文档/任务书在主仓库 `docs/`（未入库），worktree 内用绝对路径引用。
 
