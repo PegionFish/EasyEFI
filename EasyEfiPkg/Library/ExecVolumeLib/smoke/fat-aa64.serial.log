@@ -17,14 +17,14 @@ EDK II
 UEFI v2.70 (EDK II, 0x00010000)
 [1m[33m[40mMapping table[0m[37m[40m
 [1m[33m[40m      FS0:[0m[37m[40m [1m[37m[40mAlias(s):[0m[37m[40mHD0a0b:;BLK1:
-          PciRoot(0x0)/Pci(0x2,0x0)/USB(0x0,0x0)/HD(1,GPT,0FC3FE16-F063-4190-BB3B-E82FE756B4F5,0x800,0x1F7DF)
+          PciRoot(0x0)/Pci(0x2,0x0)/USB(0x0,0x0)/HD(1,GPT,4DB349E0-474A-410B-8F5F-9EA8CDA0FF49,0x800,0x1F7DF)
 [1m[33m[40m     BLK0:[0m[37m[40m [1m[37m[40mAlias(s):[0m[37m[40m
           PciRoot(0x0)/Pci(0x2,0x0)/USB(0x0,0x0)
 [10;01HPress [1m[37m[40mESC[0m[37m[40m in 3 seconds to skip [1m[33m[40mstartup.nsh[0m[37m[40m or any other key to continue.[10;01HPress [1m[37m[40mESC[0m[37m[40m in 2 seconds to skip [1m[33m[40mstartup.nsh[0m[37m[40m or any other key to continue.[10;01HPress [1m[37m[40mESC[0m[37m[40m in 1 seconds to skip [1m[33m[40mstartup.nsh[0m[37m[40m or any other key to continue.
 [1m[33m[40mShell> [0m[37m[40mecho -off
-[S09] boot-dp: PciRoot(0x0)/Pci(0x2,0x0)/USB(0x0,0x0)/HD(1,GPT,0FC3FE16-F063-4190-BB3B-E82FE756B4F5)/\EFI\Apps\SmokeS09.efi
+[S09] boot-dp: PciRoot(0x0)/Pci(0x2,0x0)/USB(0x0,0x0)/HD(1,GPT,4DB349E0-474A-410B-8F5F-9EA8CDA0FF49)/\EFI\Apps\SmokeS09.efi
 [S09] volumes=1
-[S09] vol0 label=TESTESP fs=FAT32 cap=64995328 free=64020992 isP3=0 dp=PciRoot(0x0)/Pci(0x2,0x0)/USB(0x0,0x0)/HD(1,GPT,0FC3FE16-F063-4190-BB3B-E82FE756B4F5)
+[S09] vol0 label=TESTESP fs=FAT32 cap=64995328 free=64020992 isP3=0 dp=PciRoot(0x0)/Pci(0x2,0x0)/USB(0x0,0x0)/HD(1,GPT,4DB349E0-474A-410B-8F5F-9EA8CDA0FF49)
 [S09] findp3=Not Found
 [S09] FAT-SMOKE PASS
 [19;01H[1m[33m[40mShell> [0m[37m[40m
