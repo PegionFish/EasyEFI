@@ -1,0 +1,5 @@
+---
+triple:          'arm64-apple-darwin'
+binary-path:     '/Users/bob/EasyEFI/.worktrees/S10/EasyEfiPkg/Library/ExecImageLib/tests/run-tests'
+relocations:     []
+...
