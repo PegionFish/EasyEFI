@@ -1,0 +1,4 @@
+# 宿主测试二进制与模式戳（不入库）
+tests/run-tests
+tests/.mode-*
+tests/*.dSYM/
