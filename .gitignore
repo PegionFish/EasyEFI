@@ -16,3 +16,4 @@ tests/host/build/
 .worktrees/
 # macOS
 .DS_Store
+staging/
