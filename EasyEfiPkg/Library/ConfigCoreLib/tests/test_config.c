@@ -370,6 +370,59 @@ TEST (t03_8_bad_path) {
   FreeResult (&R);
 }
 
+/* ---- T03-8b S04 语义裁决边界（main docs/handoffs/S04.md）----
+   前缀小写敏感/值大小写不敏感；前缀后强制分隔符；拒 ./空分量；
+   BMP 非 ASCII 路径接受；星面/非法 UTF-8/控制字符拒绝。 */
+
+TEST (t03_8b_path_s04_semantics) {
+  static const struct { const char *Path; BOOLEAN Ok; const char *Act; } Cases[] = {
+    { "data:/\xe8\x84\x9a\xe6\x9c\xac.nsh", TRUE, "exec" },   /* 中文 BMP 路径接受 */
+    { "data:\\\\\xe8\x84\x9a\xe6\x9c\xac.nsh", TRUE, "exec" }, /* 反斜杠+中文 */
+    { "data:/a.NSH", TRUE, "exec" },                          /* .nsh 值大小写不敏感 */
+    { "fs007:/x.efi", TRUE, "exec" },                         /* fs 前导零 */
+    { "boot:ffff", TRUE, "boot" },                            /* hex 小写 */
+    { "boot:MENU", TRUE, "boot" },                            /* menu 大小写不敏感 */
+    { "data:/foo..bar", TRUE, "exec" },                       /* 含点文件名合法 */
+    { "data:/..hidden", TRUE, "exec" },                       /* ..hidden 合法 */
+    { "DATA:/x.efi", FALSE, "exec" },                         /* 前缀大小写敏感 */
+    { "data:x.efi", FALSE, "exec" },                          /* 缺分隔符 */
+    { "data:/./a", FALSE, "exec" },                           /* '.' 分量拒绝 */
+    { "data:/a/", FALSE, "exec" },                            /* 尾随空分量 */
+    { "data:/a\\u0001b", FALSE, "exec" },                     /* 控制字符（JSON 转义） */
+    { "data:/\xf0\x9f\x98\x80.nsh", FALSE, "exec" },          /* 星面 emoji（合法 UTF-8，UCS-2 不可表示→PathParse 拒） */
+    { "fs-1:/x", FALSE, "exec" },                             /* fs 索引非数字 */
+    { "boot:men", FALSE, "boot" },                            /* 非 menu 非 4 位 hex */
+  };
+  char Buf[1024];
+  VRESULT R;
+  UINTN I;
+  JSON_NODE *Dom = NULL;
+  /* 非法 UTF-8（代理区/截断）：jansson 解析层即拒（到不了 PathParse），双适配器一致 */
+  ASSERT_ERR (JsonDomFromHost ("{\"items\":[{\"id\":\"a\",\"name\":\"n\",\"action\":\"exec\",\"path\":\"data:/\xed\xa0\x80\"}]}", &Dom));
+  ASSERT_TRUE (Dom == NULL);
+  ASSERT_ERR (JsonDomFromHost ("{\"items\":[{\"id\":\"a\",\"name\":\"n\",\"action\":\"exec\",\"path\":\"data:/\xe8\x84\"}]}", &Dom));
+  ASSERT_TRUE (Dom == NULL);
+  for (I = 0; I < sizeof (Cases) / sizeof (Cases[0]); I++) {
+    MakeItemJson (Buf, sizeof (Buf), Cases[I].Act, Cases[I].Path);
+    ValidateText (Buf, &R);
+    ASSERT_OK (R.DomSt);
+    ASSERT_OK (R.ValSt);
+    if (Cases[I].Ok) {
+      ASSERT_EQ (R.ErrCount, 0);
+      ASSERT_EQ (R.Cfg->Count, 1);
+      if (R.Cfg && R.Cfg->Count == 1 && strchr (Cases[I].Path, '\\') == NULL) {
+        /* Path 存原始输入串（UTF-8 逐字节）；含 JSON 转义反斜杠的例除外
+           （表值为编码形，存储值为解码形） */
+        ASSERT_EQ (strcmp (R.Cfg->Items[0].Path, Cases[I].Path), 0);
+      }
+    } else {
+      ASSERT_TRUE (FindMsg (R.Errs, R.ErrCount, 0, "path", CFG_ERR_BAD_PATH) != NULL);
+      ASSERT_EQ (R.Cfg->Count, 0);
+    }
+    FreeResult (&R);
+  }
+}
+
 /* ---- T03-9 未知 action ---- */
 
 TEST (t03_9_bad_action) {
@@ -637,6 +690,7 @@ int main (void) {
   RUN_TEST (t03_6_float_rejected);
   RUN_TEST (t03_7_dup_id);
   RUN_TEST (t03_8_bad_path);
+  RUN_TEST (t03_8b_path_s04_semantics);
   RUN_TEST (t03_9_bad_action);
   RUN_TEST (t03_10_skip_timeout);
   RUN_TEST (t03_11_empty_items);
