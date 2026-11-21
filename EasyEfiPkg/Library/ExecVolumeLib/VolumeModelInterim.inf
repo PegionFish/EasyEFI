@@ -1,0 +1,23 @@
+## VolumeModel INTERIM（S09 临时自供；S05 真实 VolumeModelLib 合入 main 后整体删除。
+## 仅经 module.dsc.inc 的 <LibraryClasses> 作用域覆盖解析给 ExecVolumeLib/SmokeS09，
+## 不影响全局 VolumeModelLib 解析。）
+[Defines]
+  INF_VERSION    = 0x0001001b
+  BASE_NAME      = VolumeModelInterim
+  FILE_GUID      = 9C41D2E7-3A58-4F61-9B0D-5091E7A6C001
+  MODULE_TYPE    = BASE
+  VERSION_STRING = 0.1
+  LIBRARY_CLASS  = VolumeModelLib|UEFI_APPLICATION UEFI_DRIVER DXE_DRIVER
+
+[Sources]
+  VolumeModelInterim.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  EasyEfiPkg/EasyEfiPkg.dec
+
+[LibraryClasses]
+  EfiCompatLib
+
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = -DUEFI_BUILD

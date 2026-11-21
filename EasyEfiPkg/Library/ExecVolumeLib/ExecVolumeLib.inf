@@ -1,4 +1,7 @@
-## ExecVolumeLib STUB（S00 脚手架；流负责人替换 Sources 为真实实现）
+## ExecVolumeLib — FsOps 双后端 + 卷枚举 + P3 发现（S09 真实实现）
+## POSIX 后端（FsPosixBackend.c）仅宿主编译（host.mk），不进本 .inf。
+## VolumeModelLib 依赖：S05 合入前经 module.dsc.inc 作用域覆盖解析到
+## VolumeModelInterim（S09 临时自供）；合入后移除覆盖即回全局真实解析。
 [Defines]
   INF_VERSION    = 0x0001001b
   BASE_NAME      = ExecVolumeLib
@@ -8,7 +11,9 @@
   LIBRARY_CLASS  = ExecVolumeLib|UEFI_APPLICATION UEFI_DRIVER DXE_DRIVER
 
 [Sources]
-  ExecVolumeLibStub.c
+  FsCommon.c
+  FsUefiBackend.c
+  VolUefi.c
 
 [Packages]
   MdePkg/MdePkg.dec
@@ -16,6 +21,21 @@
 
 [LibraryClasses]
   EfiCompatLib
+  BaseLib
+  BaseMemoryLib
+  DevicePathLib
+  UefiBootServicesTableLib
+  VolumeModelLib
+
+[Protocols]
+  gEfiSimpleFileSystemProtocolGuid    ## CONSUMES
+  gEfiLoadedImageProtocolGuid         ## CONSUMES
+  gEfiDevicePathProtocolGuid          ## CONSUMES
+  gEfiPartitionInfoProtocolGuid       ## CONSUMES
+
+[Guids]
+  gEfiFileInfoGuid                    ## CONSUMES
+  gEfiFileSystemInfoGuid              ## CONSUMES
 
 [BuildOptions]
   GCC:*_*_*_CC_FLAGS = -DUEFI_BUILD
