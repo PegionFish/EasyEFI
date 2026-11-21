@@ -1,4 +1,4 @@
-## Editor STUB 应用（S00 脚手架）
+## Editor — S13 脚本导向文本编辑器（core+glue；design §7.3 MVP 范围冻结）
 [Defines]
   INF_VERSION    = 0x0001001b
   BASE_NAME      = Editor
@@ -8,7 +8,8 @@
   ENTRY_POINT    = UefiMain
 
 [Sources]
-  EditorStub.c
+  EditorCore.c
+  EditorGlue.c
 
 [Packages]
   MdePkg/MdePkg.dec
@@ -20,9 +21,30 @@
   UefiLib
   UefiBootServicesTableLib
   PrintLib
+  BaseLib
+  BaseMemoryLib
+  MemoryAllocationLib
+  DevicePathLib
+  PcdLib
+  EfiCompatLib
+  EditorModelLib
+  Utf8Lib
+  TuiScreenLib
+  TuiInputLib
+  ExecVolumeLib
 
 [Protocols]
   gEfiShellProtocolGuid
+  gEfiLoadedImageProtocolGuid
+
+[Guids]
+  ## S09 VolUefi.c 引用但 ExecVolumeLib.inf 未声明（S09 缺口，已报 leader）；
+  ## 消费模块声明以生成定义，保证链接。S09 修复后本行可留可删。
+  gEfiPartTypeSystemPartGuid
+
+[Pcd]
+  gEasyEfiPkgTokenSpaceGuid.PcdEditorMaxFileSize
+  gEasyEfiPkgTokenSpaceGuid.PcdUndoDepth
 
 [BuildOptions]
   GCC:*_*_*_CC_FLAGS = -DUEFI_BUILD

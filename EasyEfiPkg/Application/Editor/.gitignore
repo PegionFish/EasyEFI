@@ -1,0 +1,3 @@
+# 宿主测试二进制与调试符号（不入库）
+tests/run-tests
+tests/*.dSYM/
