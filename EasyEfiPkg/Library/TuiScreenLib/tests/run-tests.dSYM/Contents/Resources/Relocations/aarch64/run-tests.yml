@@ -1,0 +1,5 @@
+---
+triple:          'arm64-apple-darwin'
+binary-path:     '/Users/bob/EasyEFI/.worktrees/S06/EasyEfiPkg/Library/TuiScreenLib/tests/run-tests'
+relocations:     []
+...
