@@ -17,3 +17,6 @@ tests/host/build/
 # macOS
 .DS_Store
 staging/
+*.dSYM/
+**/tests/run-tests
+**/tests/gen_golden

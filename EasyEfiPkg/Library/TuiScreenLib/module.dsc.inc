@@ -4,3 +4,4 @@
 
 [Components]
   EasyEfiPkg/Library/TuiScreenLib/TuiScreenLib.inf
+  EasyEfiPkg/Library/TuiScreenLib/SmokeApp/TuiScreenSmoke.inf

@@ -1,0 +1,24 @@
+## TEST-ONLY：EfiCompatLib 冒烟替身（main 84c6f4c 修复版语义；worktree 基线有
+## ReallocatePool 参数序 bug，EfiCompatLib 不在 S10 写权限内）。不进聚合器。
+[Defines]
+  INF_VERSION    = 0x0001001b
+  BASE_NAME      = SmokeEfiCompatLib
+  FILE_GUID      = CD49DD58-BFD2-4E3D-A450-321B50E1964C
+  MODULE_TYPE    = BASE
+  VERSION_STRING = 1.0
+  LIBRARY_CLASS  = EfiCompatLib
+
+[Sources]
+  EfiMemFix.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  EasyEfiPkg/EasyEfiPkg.dec
+
+[LibraryClasses]
+  MemoryAllocationLib
+  DebugLib
+  BaseMemoryLib
+
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = -DUEFI_BUILD

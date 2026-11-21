@@ -1,0 +1,13 @@
+# S08 冒烟 serial 断言（qemu-run.sh --expect；每行一个 grep -E 模式，全命中=PASS）
+# 应用自检序列：列表 DOWN DOWN DOWN UP '5' '2' HOME END → sel 2 4 4 2 4 4 0 4；
+# 对话 'y'(默认N)/RET(默认Y)/ESC(默认Y)；输入 a b c BACKSPACE RET → "ab"。
+# 顺序正确性由应用内 mExpectedSel 自检保证（偏差打 FAIL，PASS 不出现）。
+\[S08\] ready
+\[S08\] sel 0
+\[S08\] sel 2
+\[S08\] sel 4
+\[S08\] dlg1 yes=1 st=1
+\[S08\] dlg2 yes=1 st=1
+\[S08\] dlg3 yes=0 abort=1
+\[S08\] input=ab done=1
+\[S08\] PASS

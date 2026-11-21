@@ -1,0 +1,27 @@
+## S08 冒烟测试应用（列表/对话框/输入行渲染 + QMP 按键自检；仅 QEMU 冒烟用）
+[Defines]
+  INF_VERSION    = 0x0001001b
+  BASE_NAME      = TuiWidgetTest
+  FILE_GUID      = 7C9E4A12-3B8D-4E6F-9A51-D28F6E40B3C7
+  MODULE_TYPE    = UEFI_APPLICATION
+  VERSION_STRING = 1.0
+  ENTRY_POINT    = UefiMain
+
+[Sources]
+  TuiWidgetTest.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  EasyEfiPkg/EasyEfiPkg.dec
+
+[LibraryClasses]
+  UefiApplicationEntryPoint
+  UefiLib
+  UefiBootServicesTableLib
+  PrintLib
+  TuiWidgetLib
+  TuiScreenLib
+  TuiInputLib
+
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = -DUEFI_BUILD
