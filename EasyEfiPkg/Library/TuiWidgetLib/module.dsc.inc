@@ -4,3 +4,4 @@
 
 [Components]
   EasyEfiPkg/Library/TuiWidgetLib/TuiWidgetLib.inf
+  EasyEfiPkg/Library/TuiWidgetLib/Test/TuiWidgetTest.inf
