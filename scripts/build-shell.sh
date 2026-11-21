@@ -18,7 +18,7 @@ for ARCH in "${arches[@]}"; do
       mkdir -p /work/Conf
       source /edk2/edksetup.sh --reconfig >/dev/null 2>&1
       build -p ShellPkg/ShellPkg.dsc -m ShellPkg/Application/Shell/Shell.inf -a "$ARCH" -t GCC -b RELEASE \
-        --pcd gEfiShellPkgTokenSpaceGuid.PcdShellDefaultDelay|"$DELAY"
+        --pcd gEfiShellPkgTokenSpaceGuid.PcdShellDefaultDelay="$DELAY"
     '
 done
 echo "产物: Build/Shell/RELEASE_GCC/<ARCH>/ShellPkg/Application/Shell/Shell/OUTPUT/Shell.efi"
