@@ -1,0 +1,19 @@
+# S07 QMP 按键注入（aa64/HVF 启动快）。
+# 格式见 scripts/qmp-keys.py：<延迟秒> <键名>；延迟自 QEMU 启动计。
+# 首键 15s：确保越过 Shell 启动倒计时（默认 5s，期间任何键会被 Shell 消费丢弃）。
+# 序列与 Test/TuiInputTest.c 的 mExpected 及 smoke/expect.txt 一致。
+15 down
+16 up
+17 left
+18 right
+19 pgdn
+20 pgup
+21 home
+22 end
+23 ret
+24 a
+25 backspace
+26 tab
+27 delete
+28 f4
+29 esc

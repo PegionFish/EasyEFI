@@ -8,7 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN sed -i 's|http://ports.ubuntu.com/ubuntu-ports|http://mirrors.aliyun.com/ubuntu-ports|g; s|http://archive.ubuntu.com/ubuntu|http://mirrors.aliyun.com/ubuntu|g; s|http://security.ubuntu.com/ubuntu|http://mirrors.aliyun.com/ubuntu|g' /etc/apt/sources.list \
     && apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    gcc-x86-64-linux-gnu binutils-x86-64-linux-gnu \
+    gcc-x86-64-linux-gnu binutils-x86-64-linux-gnu libc6-dev-amd64-cross \
     gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
     nasm iasl acpica-tools \
     uuid-runtime uuid-dev mtools gdisk dosfstools ntfs-3g \

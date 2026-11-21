@@ -53,12 +53,19 @@ elif [[ -n "$FIRST_APP" ]]; then
   {
     echo "echo -off"
     if [[ "$VARIANT" == ntfs ]]; then
-      echo "load EFI\\Drivers\\ntfs.efi"
+      echo "load %homefilesystem%\\EFI\\Drivers\\ntfs.efi"
       echo "map -r"
     fi
     echo "EFI\\Apps\\${FIRST_APP}.efi"
   } > /mnt/p1/EFI/BOOT/startup.nsh
   cp /mnt/p1/EFI/BOOT/startup.nsh /mnt/p1/startup.nsh
 fi
+# 任意文件放置：<src>=<ESP 内相对路径>（引导链测试用设计布局）
+while IFS= read -r entry; do
+  [[ -z "$entry" ]] && continue
+  src="${entry%%=*}"; dest="${entry#*=}"
+  mkdir -p "/mnt/p1/$(dirname "$dest")"
+  cp "$src" "/mnt/p1/$dest"
+done <<< "$EXTRAFILES"
 umount /mnt/p1
 echo "image ready: $OUT (${SIZE}M, $VARIANT, $ARCH)"

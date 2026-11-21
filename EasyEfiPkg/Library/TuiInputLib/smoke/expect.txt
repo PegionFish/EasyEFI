@@ -1,0 +1,20 @@
+# S07 冒烟 serial 断言（qemu-run.sh --expect；每行一个 grep -E 模式，全命中=PASS）
+# 应用自检序列：DOWN UP LEFT RIGHT PGDN PGUP HOME END ENTER CHAR(a) BACKSPACE TAB DELETE F4 ESC
+\[S07\] ready
+\[S07\] key DOWN
+\[S07\] key UP
+\[S07\] key LEFT
+\[S07\] key RIGHT
+\[S07\] key PGDN
+\[S07\] key PGUP
+\[S07\] key HOME
+\[S07\] key END
+\[S07\] key ENTER
+\[S07\] key CHAR U\+0061
+\[S07\] key BACKSPACE
+\[S07\] key TAB
+\[S07\] key DELETE
+\[S07\] key F4
+\[S07\] key ESC
+\[S07\] poll-empty
+\[S07\] PASS keys=15

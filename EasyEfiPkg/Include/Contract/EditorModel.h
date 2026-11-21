@@ -46,5 +46,7 @@ EFI_STATUS    ModelInfo (EDITOR_MODEL *M, MODEL_INFO *Out);
 EFI_STATUS    ModelRenderRow (EDITOR_MODEL *M, UINTN Line, UINTN ColStart, UINTN Width,
                               TUI_CELL *Out);
 VOID          ModelFreeHits (MODEL_HIT *Hits);
+/* 指定位置 token（S13 状态栏 U+XXXX 显示用；S02 提案批准）。越界 EFI_NOT_FOUND */
+EFI_STATUS    ModelTokenAt (EDITOR_MODEL *M, UINTN Line, UINTN Col, UTF8_TOKEN *Out);
 
 #endif

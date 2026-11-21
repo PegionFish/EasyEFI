@@ -25,6 +25,7 @@
   DebugLib|MdePkg/Library/UefiDebugLibConOut/UefiDebugLibConOut.inf
   DebugPrintErrorLevelLib|MdePkg/Library/BaseDebugPrintErrorLevelLib/BaseDebugPrintErrorLevelLib.inf
   PcdLib|MdePkg/Library/BasePcdLibNull/BasePcdLibNull.inf
+  SortLib|MdeModulePkg/Library/BaseSortLib/BaseSortLib.inf
   EfiCompatLib|EasyEfiPkg/Library/EfiCompatLib/EfiCompatLib.inf
   # JsonLib 依赖（edk2-stable202608 实测路径；S03 EDK2 适配器用）
   JsonLib|RedfishPkg/Library/JsonLib/JsonLib.inf
@@ -48,3 +49,4 @@
 !include EasyEfiPkg/Application/Launcher/module.dsc.inc
 !include EasyEfiPkg/Application/FileManager/module.dsc.inc
 !include EasyEfiPkg/Application/Editor/module.dsc.inc
+!include boot/ShellRunner/module.dsc.inc
