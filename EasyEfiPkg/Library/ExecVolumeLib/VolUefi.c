@@ -73,34 +73,66 @@ DeriveFsName (
   CopyStrTrunc (Out, name, Cap);
 }
 
-/** 取自身 LoadedImage 设备路径字节（callee 分配）。失败返回 NULL。 */
+EFI_STATUS
+VolOwnBootDp (
+  UINT8 **Dp,
+  UINTN *Len
+  )
+{
+  EFI_LOADED_IMAGE_PROTOCOL *li;
+  EFI_DEVICE_PATH_PROTOCOL  *hdp, *full;
+  UINTN                     sz;
+  UINT8                     *buf;
+  EFI_STATUS                st;
+
+  if (Dp == NULL || Len == NULL) {
+    return EFI_INVALID_PARAMETER;
+  }
+  st = gBS->HandleProtocol (gImageHandle, &gEfiLoadedImageProtocolGuid, (VOID **)&li);
+  if (EFI_ERROR (st)) {
+    return st;
+  }
+  hdp = DevicePathFromHandle (li->DeviceHandle);
+  if (hdp == NULL) {
+    return EFI_NOT_FOUND;
+  }
+  if (li->FilePath != NULL) {
+    full = AppendDevicePath (hdp, li->FilePath);   /* AllocatePool 分配 */
+    if (full == NULL) {
+      return EFI_OUT_OF_RESOURCES;
+    }
+  } else {
+    full = hdp;
+  }
+  sz = GetDevicePathSize (full);
+  buf = (UINT8 *)MemAlloc (sz ? sz : 1);
+  if (buf == NULL) {
+    if (full != hdp) {
+      gBS->FreePool (full);
+    }
+    return EFI_OUT_OF_RESOURCES;
+  }
+  CopyMem (buf, full, sz);
+  if (full != hdp) {
+    gBS->FreePool (full);
+  }
+  *Dp  = buf;
+  *Len = sz;
+  return EFI_SUCCESS;
+}
+
+/** 取自身启动设备路径字节（便利包装）。失败返回 NULL。 */
 STATIC
 UINT8 *
 OwnBootDp (
   UINTN *Len
   )
 {
-  EFI_LOADED_IMAGE_PROTOCOL *li;
-  EFI_DEVICE_PATH_PROTOCOL  *dp;
-  UINTN                     sz;
-  UINT8                     *buf;
-  EFI_STATUS                st;
+  UINT8 *buf = NULL;
 
-  st = gBS->HandleProtocol (gImageHandle, &gEfiLoadedImageProtocolGuid, (VOID **)&li);
-  if (EFI_ERROR (st) || li->FilePath == NULL) {
+  if (EFI_ERROR (VolOwnBootDp (&buf, Len))) {
     return NULL;
   }
-  dp = li->FilePath;
-  sz = GetDevicePathSize (dp);
-  if (sz == 0) {
-    return NULL;
-  }
-  buf = (UINT8 *)MemAlloc (sz);
-  if (buf == NULL) {
-    return NULL;
-  }
-  CopyMem (buf, dp, sz);
-  *Len = sz;
   return buf;
 }
 
@@ -153,17 +185,11 @@ VolEnumerate (
     if (EFI_ERROR (st)) {
       continue;
     }
-    /* 标签/容量/空闲（失败不致命：置空/0） */
-    st = root->GetInfo (root, &gEfiFileSystemInfoGuid, &sz, NULL);
-    if (st == EFI_BUFFER_TOO_SMALL) {
-      fsi = (EFI_FILE_SYSTEM_INFO *)MemAlloc (sz);
-      if (fsi != NULL) {
-        st = root->GetInfo (root, &gEfiFileSystemInfoGuid, &sz, fsi);
-        if (EFI_ERROR (st)) {
-          MemFree (fsi);
-          fsi = NULL;
-        }
-      }
+    /* 标签/容量/空闲（失败不致命：置空/0）。
+     * 健壮 GetInfo：EfiFs/ntfs-3g 尺寸协商非标准（S14 交接已知限制 2）。 */
+    st = UefiGetInfoRobust (root, &gEfiFileSystemInfoGuid, (VOID **)&fsi, &sz);
+    if (EFI_ERROR (st)) {
+      fsi = NULL;
     }
     ZeroMem (v, sizeof (*v));
     if (fsi != NULL) {

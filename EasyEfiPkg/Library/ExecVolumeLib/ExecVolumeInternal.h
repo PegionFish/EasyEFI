@@ -58,6 +58,20 @@ FS_OPS *FsUefiBackend (EFI_HANDLE SfsHandle);
 **/
 FS_OPS *FsUefiFromRoot (EFI_HANDLE SfsHandle, EFI_FILE_PROTOCOL *Root);
 
+/**
+  健壮 GetInfo（callee 分配，caller MemFree）：非零起始缓冲 + 有界重试。
+  兼容标准两阶段语义（FAT）与 EfiFs/ntfs-3g 非标准语义（S14 交接已知限制 2：
+  NULL/0 问尺寸不回写；缓冲偏大返回 TOO_SMALL+精确尺寸；恰好相等才成功）。
+**/
+EFI_STATUS UefiGetInfoRobust (EFI_FILE_PROTOCOL *File, EFI_GUID *Guid, VOID **Buf, UINTN *Size);
+
+/**
+  自身启动设备路径全字节（callee MemAlloc，含 END 节点）。
+  注意：LoadedImage.FilePath 仅是文件部分（相对 DeviceHandle）；
+  完整路径 = DeviceHandle 的设备路径（含 HD(GPT) 分区节点）+ FilePath。
+**/
+EFI_STATUS VolOwnBootDp (UINT8 **Dp, UINTN *Len);
+
 #endif /* UEFI_BUILD */
 
 #endif /* EXEC_VOLUME_INTERNAL_H */
