@@ -11,7 +11,7 @@
 #       会话2 用相对路径（glue 兜底：各卷 Info 探测）。
 set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # EasyEfiPkg/Application/Editor/smoke
-ROOT="$(cd "$DIR/../../.." && pwd)"                    # worktree 根
+ROOT="$(cd "$DIR/../../../.." && pwd)"                 # worktree 根
 SHELL_BUILD="${SHELL_BUILD:-/Users/bob/EasyEFI/Build/Shell/RELEASE_GCC}"
 ARCH="${1:-all}"
 case "$ARCH" in x64|aa64|all) ;; *) echo "usage: $0 [x64|aa64|all]" >&2; exit 2;; esac
@@ -34,6 +34,8 @@ run_one() {
   cp "$shell" "$DIR/shell/Shell_$up.efi"
 
   img="$DIR/s13-$arch.img"
+  # Docker Desktop virtiofs：复用已存在的 img 文件 losetup 会 ENOENT（S13 实证），先删旧。
+  rm -f "$img"
   echo "=== S13 smoke $arch: mktestimage (ntfs) ==="
   bash "$ROOT/scripts/mktestimage.sh" --arch "$up" --variant ntfs \
     --out "$(cpath "$img")" \
