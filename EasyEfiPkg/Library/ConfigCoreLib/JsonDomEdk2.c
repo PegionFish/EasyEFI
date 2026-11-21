@@ -6,8 +6,7 @@
   - 浮点（EdkiiJsonTypeReal）→ EFI_INVALID_PARAMETER（DOM 数值仅 INT64；
     design §6 整数 only；与宿主适配器行为一致，T03-15 同构）。
   - 对象键 >63 字节截断至 63（DOM Key[64]；schema 键均短，仅影响未知字段告警显示）。
-  - 数组计数用 JsonArrayGetValue 迭代到 NULL（避开 JsonLib/JsonDom 的
-    JsonArrayCount 同名冲突，见 ConfigCoreInternal.h）。
+  - 数组计数用 JsonArrayGetValue 迭代到 NULL（不依赖 JsonLib 的 JsonArrayCount）。
   - 深度上限 CFG_MAX_DOM_DEPTH（防御恶意深嵌套耗尽 UEFI 栈）。
 **/
 #include "ConfigCoreInternal.h"
@@ -80,7 +79,10 @@ STATIC EFI_STATUS ConvertEdk2 (EDKII_JSON_VALUE V, UINTN Depth, JSON_NODE **Out)
       break;
     case EdkiiJsonTypeString:
       N->Type = JSON_STRING;
-      S = JsonValueGetAsciiString (V);   /* jansson 字符串值 = UTF-8 字节 */
+      /* 必须用 JsonValueGetString（原始 UTF-8）：JsonValueGetAsciiString 对
+         非 ASCII 字符串返回 NULL，会把整份文档拒掉，破坏与宿主适配器的同构性
+         （非 ASCII 应由核心按项报 NON_ASCII，而非适配器整体失败）。 */
+      S = JsonValueGetString (V);
       if (S == NULL) { St = EFI_INVALID_PARAMETER; break; }
       N->U.Str = MemAlloc (CfgStrLen (S) + 1);
       if (N->U.Str == NULL) { St = EFI_OUT_OF_RESOURCES; break; }

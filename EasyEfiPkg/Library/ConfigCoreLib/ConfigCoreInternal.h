@@ -1,24 +1,11 @@
 /** @file
   ConfigCoreLib 内部头（非契约；S03 私有）。
-  - UEFI 构建：化解 JsonLib.h 与 JsonDom.h 的 JsonArrayCount 同名冲突（见下）。
-  - 双环境 CHAR8 助手 / 常量 / 内部附加 API（DOM 规范 dumps，供 T03-15 同构对比）。
+  双环境 CHAR8 助手 / 常量 / 内部附加 API（DOM 规范 dumps，供 T03-15 同构对比）。
+  历史注记：JsonDom.h 的 DOM 助手原名 JsonArrayCount，与 JsonLib.h 同名冲突；
+  S03 上报后 leader 批准改名 JsonDomArrayCount（契约已更新），workaround 已移除。
 **/
 #ifndef CONFIG_CORE_INTERNAL_H
 #define CONFIG_CORE_INTERNAL_H
-
-#ifdef UEFI_BUILD
-/* 契约冲突 workaround（S03 交接注记有提案，leader 裁决前冻结头不改）：
-   JsonLib.h 声明 UINTN JsonArrayCount(EDKII_JSON_ARRAY)，即 VOID 指针参数；
-   JsonDom.h 声明 UINTN JsonArrayCount(CONST JSON_NODE*) —— 同 TU 内冲突。
-   先把 JsonLib 的声明改名；JsonLib.h 是 pragma once，JsonDom.h 内的二次
-   include 成为 no-op，DOM 助手声明得以保留。本库绝不调用 JsonLib 的
-   JsonArrayCount（EDK2 适配器以 JsonArrayGetValue 迭代到 NULL 计数）。
-   JsonLib.h 不自带基础类型，须先 include Uefi.h。 */
-#include <Uefi.h>
-#define JsonArrayCount Edk2JsonArrayCount
-#include <Library/JsonLib.h>
-#undef JsonArrayCount
-#endif
 
 #include "Contract/ConfigSchema.h"
 #include "Contract/EfiMem.h"

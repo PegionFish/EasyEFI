@@ -21,6 +21,7 @@
 
 [LibraryClasses]
   EfiCompatLib
+  ExecPathLib
   JsonLib
   BaseLib
   PcdLib

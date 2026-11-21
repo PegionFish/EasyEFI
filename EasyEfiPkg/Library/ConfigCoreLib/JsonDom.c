@@ -40,7 +40,7 @@ JSON_NODE *JsonObjectGet (CONST JSON_NODE *Obj, CONST CHAR8 *Key) {
   return NULL;
 }
 
-UINTN JsonArrayCount (CONST JSON_NODE *Arr) {
+UINTN JsonDomArrayCount (CONST JSON_NODE *Arr) {
   if (Arr == NULL || Arr->Type != JSON_ARRAY) return 0;
   return Arr->U.Array.Count;
 }
@@ -83,10 +83,12 @@ typedef struct {
 
 STATIC EFI_STATUS DumpReserve (CFG_DUMPBUF *B, UINTN Extra) {
   UINTN Need = B->Len + Extra + 1;
+  UINTN NewCap;
+  CHAR8 *P;
   if (Need <= B->Cap) return EFI_SUCCESS;
-  UINTN NewCap = (B->Cap != 0) ? B->Cap : 256;
+  NewCap = (B->Cap != 0) ? B->Cap : 256;
   while (NewCap < Need) NewCap *= 2;
-  CHAR8 *P = MemRealloc (B->Buf, NewCap);
+  P = MemRealloc (B->Buf, NewCap);
   if (P == NULL) return EFI_OUT_OF_RESOURCES;
   B->Buf = P;
   B->Cap = NewCap;

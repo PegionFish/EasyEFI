@@ -3,4 +3,4 @@ tests/run-tests
 tests/run-tests-leak
 tests/gen_golden
 *.serial.log
-*.img
+*.img*.dSYM/

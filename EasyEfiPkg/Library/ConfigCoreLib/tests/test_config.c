@@ -591,7 +591,7 @@ TEST (extra_adapter_edges) {
   JsonDomFree (NULL);
   /* DOM 助手边界 */
   ASSERT_TRUE (JsonObjectGet (NULL, "x") == NULL);
-  ASSERT_EQ (JsonArrayCount (NULL), 0);
+  ASSERT_EQ (JsonDomArrayCount (NULL), 0);
   ASSERT_TRUE (JsonArrayGet (NULL, 0) == NULL);
   /* INT64_MIN dumps */
   {

@@ -90,7 +90,7 @@ STATIC UINT32 CheckArch (CONST JSON_NODE *V, UINT8 *Mask, CONST CHAR8 **BadVal) 
   UINTN I, N;
   UINT8 M = 0;
   if (V->Type != JSON_ARRAY) return CFG_ERR_TYPE;
-  N = JsonArrayCount (V);
+  N = JsonDomArrayCount (V);
   for (I = 0; I < N; I++) {
     CONST JSON_NODE *E = JsonArrayGet (V, I);
     CONST CHAR8 *S;
@@ -387,11 +387,11 @@ EFI_STATUS ConfigValidate (
   } else if (V->Type != JSON_ARRAY) {
     St = ListAdd (&E, CFG_TOP_INDEX, "items", CFG_ERR_TYPE, "items: expected array", NULL, NULL);
     if (EFI_ERROR (St)) goto Fail;
-  } else if (JsonArrayCount (V) == 0) {
+  } else if (JsonDomArrayCount (V) == 0) {
     St = ListAdd (&E, CFG_TOP_INDEX, "items", CFG_ERR_MISSING_FIELD, "items is empty", NULL, NULL);
     if (EFI_ERROR (St)) goto Fail;
   } else {
-    N = JsonArrayCount (V);
+    N = JsonDomArrayCount (V);
     Cfg->Items = MemAlloc (N * sizeof (CONFIG_ITEM));
     if (Cfg->Items == NULL) { St = EFI_OUT_OF_RESOURCES; goto Fail; }
     Accepted = 0;
