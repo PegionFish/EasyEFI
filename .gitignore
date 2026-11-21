@@ -16,3 +16,7 @@ tests/host/build/
 .worktrees/
 # macOS
 .DS_Store
+staging/
+*.dSYM/
+**/tests/run-tests
+**/tests/gen_golden

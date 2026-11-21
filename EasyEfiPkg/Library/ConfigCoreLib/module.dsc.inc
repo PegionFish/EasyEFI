@@ -4,3 +4,4 @@
 
 [Components]
   EasyEfiPkg/Library/ConfigCoreLib/ConfigCoreLib.inf
+  EasyEfiPkg/Library/ConfigCoreLib/TestApp/ConfigSmoke.inf

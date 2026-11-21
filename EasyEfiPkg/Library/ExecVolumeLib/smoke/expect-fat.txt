@@ -1,0 +1,6 @@
+# S09 fat 变体冒烟断言（qemu-run.sh --expect；每行一个 grep -E 模式）
+\[S09\] boot-dp: .*HD\(
+\[S09\] volumes=[1-9][0-9]*
+\[S09\] vol[0-9]+ .*fs=FAT32
+\[S09\] findp3=Not Found
+\[S09\] FAT-SMOKE PASS

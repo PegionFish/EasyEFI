@@ -7,7 +7,7 @@ echo -off
 load %homefilesystem%\EFI\Drivers\ntfs.efi
 map -r
 if exist %homefilesystem%\noautorun then
-  echo [EasyEFI] noautorun flag on boot partition - staying in UEFI Shell.
+  echo [EasyEFI] noautorun flag on boot partition; staying in UEFI Shell.
 else
   %homefilesystem%\EFI\Launcher\Launcher.efi
 endif

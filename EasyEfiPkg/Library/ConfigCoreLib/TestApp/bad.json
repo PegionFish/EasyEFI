@@ -1,0 +1,16 @@
+{
+  "title": "Bad Config",
+  "version": "1.0.0",
+  "skip_timeout": 99,
+  "extra_top": 1,
+  "items": [
+    { "name": "no id", "action": "exec", "path": "data:/a.efi" },
+    { "id": "nonascii", "name": "中文", "action": "exec", "path": "data:/a.efi" },
+    { "id": "badarch", "name": "bad arch", "arch": ["arm64"], "action": "exec", "path": "data:/a.efi" },
+    { "id": "dup", "name": "dup one", "action": "shell" },
+    { "id": "dup", "name": "dup two", "action": "shell" },
+    { "id": "badpath", "name": "bad path", "action": "exec", "path": "usb:/x.efi" },
+    { "id": "badaction", "name": "bad action", "action": "launch", "path": "data:/x" },
+    { "id": "ok", "name": "valid item", "action": "exec", "path": "data:/ok.efi", "danger": true, "unknown_field": 1 }
+  ]
+}

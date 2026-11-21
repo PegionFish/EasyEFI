@@ -1,0 +1,27 @@
+## S10 冒烟目标 .efi（TEST-ONLY；返回 EFI_ABORTED + 改 ConOut 模式）
+[Defines]
+  INF_VERSION    = 0x0001001b
+  BASE_NAME      = S10Target
+  FILE_GUID      = CCD8BE44-1F47-49F7-896D-7755F2060581
+  MODULE_TYPE    = UEFI_APPLICATION
+  VERSION_STRING = 1.0
+  ENTRY_POINT    = UefiMain
+
+[Sources]
+  SmokeTarget.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  EasyEfiPkg/EasyEfiPkg.dec
+
+[LibraryClasses]
+  UefiLib
+  UefiBootServicesTableLib
+  UefiApplicationEntryPoint
+  EfiCompatLib
+
+[Protocols]
+  gEfiLoadedImageProtocolGuid
+
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = -DUEFI_BUILD

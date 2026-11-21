@@ -1,0 +1,24 @@
+## S06 TuiScreenLib QEMU 冒烟应用（经 module.dsc.inc [Components] 接入）
+[Defines]
+  INF_VERSION    = 0x0001001b
+  BASE_NAME      = TuiScreenSmoke
+  FILE_GUID      = EF449EDA-B809-4DF6-AD6A-D3DC7D3AF068
+  MODULE_TYPE    = UEFI_APPLICATION
+  VERSION_STRING = 1.0
+  ENTRY_POINT    = UefiMain
+
+[Sources]
+  TuiScreenSmoke.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  EasyEfiPkg/EasyEfiPkg.dec
+
+[LibraryClasses]
+  UefiApplicationEntryPoint
+  UefiLib
+  UefiBootServicesTableLib
+  TuiScreenLib
+
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = -DUEFI_BUILD
