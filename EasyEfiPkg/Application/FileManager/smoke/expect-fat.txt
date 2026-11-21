@@ -1,0 +1,10 @@
+# S12 FAT 冒烟 serial 断言（双 USB 盘；FAT 变体 interim 实证，ntfs 待 S14 目录 Read 修复）
+\[S12\] FileManager start
+test\.nsh
+echo \[S12-NSH\]
+Copied to FS
+EXECUTE
+FS[0-9]:/test\.nsh
+default: N
+\[S12-NSH\] ran
+\[S12\] FileManager exit

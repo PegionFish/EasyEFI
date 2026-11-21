@@ -1,0 +1,18 @@
+# S12 FAT 冒烟按键（aa64/HVF；双 USB 盘：启动 ESP fs0 + 数据盘 fs1）。
+# ESP 根视图: [EFI/, startup.nsh, test.nsh]（目录优先按名）。
+# 流程: 选 test.nsh（预览文本）→ F5 复制到 fs1 → 回 DIR → Enter 执行确认 → y
+#       → 嵌套 Shell 跑 test.nsh → exit 回 FM → F10 退出。
+20 down
+21 down
+23 f5
+25 down
+27 ret
+29 spc
+31 ret
+33 y
+41 e
+41.4 x
+41.8 i
+42.2 t
+43 ret
+47 f10

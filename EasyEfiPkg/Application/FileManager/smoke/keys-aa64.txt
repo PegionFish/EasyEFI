@@ -1,0 +1,18 @@
+# S12 ntfs 冒烟按键（aa64/HVF）。FM 默认进 P3（卷排序 P3 优先，S09 VolSortMark）。
+# P3 根视图: [scripts/, .easyefi, readme.txt]（目录优先）→ Sel0=scripts。
+# 流程: 进 scripts → 预览 fpt.nsh → F5 复制到 ESP（picker DOWN 到卷1）→
+#       回 DIR → Enter 执行确认 → y → 嵌套 Shell 跑 fpt.nsh → exit 回 FM → F10 退出。
+# 首键 20s：越过 Shell 倒计时（倒计时消费按键）。
+20 ret
+22 f5
+24 down
+26 ret
+28 spc
+30 ret
+32 y
+40 e
+40.4 x
+40.8 i
+41.2 t
+42 ret
+46 f10

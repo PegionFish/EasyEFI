@@ -1,0 +1,88 @@
+== [x64/fat] build FileManager ==
+Build environment: Linux-7.0.14-linuxkit-aarch64-with-glibc2.35
+SOURCE_DATE_EPOCH not set - using 1795287906
+Build start time: 19:05:06, Nov.21 2026
+
+WORKSPACE        = /work
+PACKAGES_PATH    = /edk2
+EDK_TOOLS_PATH   = /edk2/BaseTools
+CONF_PATH        = /work/Conf
+PYTHON_COMMAND   = python3
+
+
+Architecture(s)  = X64
+Build target     = RELEASE
+Toolchain        = GCC
+
+Active Platform          = /work/EasyEfiPkg/EasyEfiPkg.dsc
+Active Module            = /work/EasyEfiPkg/Application/FileManager/FileManager.inf
+
+Processing meta-data . done!
+Generating code . done!
+Generating makefile . done!
+Building ... /work/EasyEfiPkg/Library/ExecImageLib/ExecImageLib.inf [X64]
+Building ... /work/EasyEfiPkg/Library/TuiInputLib/TuiInputLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /work/EasyEfiPkg/Library/TuiScreenLib/TuiScreenLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/UefiLib/UefiLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/UefiApplicationEntryPoint/UefiApplicationEntryPoint.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /work/EasyEfiPkg/Library/ExecVolumeLib/ExecVolumeLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/UefiRuntimeServicesTableLib/UefiRuntimeServicesTableLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/StackCheckLibNull/StackCheckLibNull.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/UefiDevicePathLib/UefiDevicePathLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /work/EasyEfiPkg/Library/VolumeModelLib/VolumeModelLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /work/EasyEfiPkg/Library/EfiCompatLib/EfiCompatLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/UefiMemoryAllocationLib/UefiMemoryAllocationLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/UefiBootServicesTableLib/UefiBootServicesTableLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/UefiDebugLibConOut/UefiDebugLibConOut.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/BasePrintLib/BasePrintLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/BaseDebugPrintErrorLevelLib/BaseDebugPrintErrorLevelLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/BaseMemoryLib/BaseMemoryLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/BasePcdLibNull/BasePcdLibNull.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/BaseLib/BaseLib.inf [X64]
+Building ... /edk2/MdePkg/Library/RegisterFilterLibNull/RegisterFilterLibNull.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /work/EasyEfiPkg/Application/FileManager/FileManager.inf [X64]
+"x86_64-linux-gnu-gcc" -MMD -MF /work/Build/EasyEfiPkg/RELEASE_GCC/X64/EasyEfiPkg/Application/FileManager/FileManager/OUTPUT/FileManagerGlue.obj.deps -g -Os -fshort-wchar -fno-builtin -fno-strict-aliasing -Wall -Werror -Wno-array-bounds -include AutoGen.h -fno-common -fstack-protector -ffunction-sections -fdata-sections -DSTRING_ARRAY_NAME=FileManagerStrings -mstack-protector-guard=global -m64 "-DEFIAPI=__attribute__((ms_abi))" -maccumulate-outgoing-args -mno-red-zone -Wno-address -mcmodel=small -fpie -fno-asynchronous-unwind-tables -Wno-address -fno-omit-frame-pointer -flto -DUSING_LTO -DUEFI_BUILD -DUEFI_BUILD -c -o /work/Build/EasyEfiPkg/RELEASE_GCC/X64/EasyEfiPkg/Application/FileManager/FileManager/OUTPUT/./FileManagerGlue.obj -I/work/EasyEfiPkg/Application/FileManager -I/work/Build/EasyEfiPkg/RELEASE_GCC/X64/EasyEfiPkg/Application/FileManager/FileManager/DEBUG -I/edk2/MdePkg -I/edk2/MdePkg/Include -I/edk2/MdePkg/Test/UnitTest/Include -I/edk2/MdePkg/Test/Mock/Include -I/edk2/MdePkg/Library/MipiSysTLib/mipisyst/library/include -I/edk2/MdePkg/Include/X64 -I/edk2/MdeModulePkg -I/edk2/MdeModulePkg/Test/Mock/Include -I/edk2/MdeModulePkg/Include -I/work/EasyEfiPkg -I/work/EasyEfiPkg/Include /work/EasyEfiPkg/Application/FileManager/FileManagerGlue.c
+rm -f /work/Build/EasyEfiPkg/RELEASE_GCC/X64/EasyEfiPkg/Application/FileManager/FileManager/OUTPUT/FileManager.lib
+"x86_64-linux-gnu-gcc-ar" cr /work/Build/EasyEfiPkg/RELEASE_GCC/X64/EasyEfiPkg/Application/FileManager/FileManager/OUTPUT/FileManager.lib  @/work/Build/EasyEfiPkg/RELEASE_GCC/X64/EasyEfiPkg/Application/FileManager/FileManager/OUTPUT/object_files.lst
+"x86_64-linux-gnu-gcc" -o /work/Build/EasyEfiPkg/RELEASE_GCC/X64/EasyEfiPkg/Application/FileManager/FileManager/DEBUG/FileManager.dll -nostdlib -Wl,-n,-q,--gc-sections -z common-page-size=0x40 -Wl,--entry,_ModuleEntryPoint -u _ModuleEntryPoint -Wl,-Map,/work/Build/EasyEfiPkg/RELEASE_GCC/X64/EasyEfiPkg/Application/FileManager/FileManager/DEBUG/FileManager.map,--whole-archive -Wl,-melf_x86_64,--oformat=elf64-x86-64,-pie -Wl,--fatal-warnings -Wl,-z,noexecstack -Wl,-z,notext -flto -Os -z common-page-size=0x1000 -Wl,--start-group,@/work/Build/EasyEfiPkg/RELEASE_GCC/X64/EasyEfiPkg/Application/FileManager/FileManager/OUTPUT/static_library_files.lst,--end-group -g -Os -fshort-wchar -fno-builtin -fno-strict-aliasing -Wall -Werror -Wno-array-bounds -include AutoGen.h -fno-common -fstack-protector -ffunction-sections -fdata-sections -DSTRING_ARRAY_NAME=FileManagerStrings -mstack-protector-guard=global -m64 "-DEFIAPI=__attribute__((ms_abi))" -maccumulate-outgoing-args -mno-red-zone -Wno-address -mcmodel=small -fpie -fno-asynchronous-unwind-tables -Wno-address -fno-omit-frame-pointer -flto -DUSING_LTO -DUEFI_BUILD -DUEFI_BUILD -Wl,--defsym=PECOFF_HEADER_SIZE=0x228 -Wl,--script=/edk2/BaseTools/Scripts/GccBase.lds -Wno-error
+"x86_64-linux-gnu-objcopy"  /work/Build/EasyEfiPkg/RELEASE_GCC/X64/EasyEfiPkg/Application/FileManager/FileManager/DEBUG/FileManager.dll
+cp -p -f /work/Build/EasyEfiPkg/RELEASE_GCC/X64/EasyEfiPkg/Application/FileManager/FileManager/DEBUG/FileManager.dll /work/Build/EasyEfiPkg/RELEASE_GCC/X64/EasyEfiPkg/Application/FileManager/FileManager/DEBUG/FileManager.debug
+"x86_64-linux-gnu-objcopy" --strip-unneeded -R .eh_frame /work/Build/EasyEfiPkg/RELEASE_GCC/X64/EasyEfiPkg/Application/FileManager/FileManager/DEBUG/FileManager.dll
+"x86_64-linux-gnu-objcopy"  /work/Build/EasyEfiPkg/RELEASE_GCC/X64/EasyEfiPkg/Application/FileManager/FileManager/DEBUG/FileManager.dll
+cp -p -f /work/Build/EasyEfiPkg/RELEASE_GCC/X64/EasyEfiPkg/Application/FileManager/FileManager/DEBUG/FileManager.debug /work/Build/EasyEfiPkg/RELEASE_GCC/X64/FileManager.debug
+"GenFw" -e UEFI_APPLICATION -o /work/Build/EasyEfiPkg/RELEASE_GCC/X64/EasyEfiPkg/Application/FileManager/FileManager/OUTPUT/FileManager.efi /work/Build/EasyEfiPkg/RELEASE_GCC/X64/EasyEfiPkg/Application/FileManager/FileManager/DEBUG/FileManager.dll
+cp -p -f /work/Build/EasyEfiPkg/RELEASE_GCC/X64/EasyEfiPkg/Application/FileManager/FileManager/OUTPUT/FileManager.efi /work/Build/EasyEfiPkg/RELEASE_GCC/X64/EasyEfiPkg/Application/FileManager/FileManager/DEBUG
+cp -p -f /work/Build/EasyEfiPkg/RELEASE_GCC/X64/EasyEfiPkg/Application/FileManager/FileManager/OUTPUT/FileManager.efi /work/Build/EasyEfiPkg/RELEASE_GCC/X64/FileManager.efi
+cp -p -f /work/Build/EasyEfiPkg/RELEASE_GCC/X64/EasyEfiPkg/Application/FileManager/FileManager/DEBUG/*.map /work/Build/EasyEfiPkg/RELEASE_GCC/X64/EasyEfiPkg/Application/FileManager/FileManager/OUTPUT
+cp -p -f /work/Build/EasyEfiPkg/RELEASE_GCC/X64/EasyEfiPkg/Application/FileManager/FileManager/DEBUG/*.pdb /work/Build/EasyEfiPkg/RELEASE_GCC/X64/EasyEfiPkg/Application/FileManager/FileManager/OUTPUT
+cp: cannot stat '/work/Build/EasyEfiPkg/RELEASE_GCC/X64/EasyEfiPkg/Application/FileManager/FileManager/DEBUG/*.pdb': No such file or directory
+make: [GNUmakefile:357: /work/Build/EasyEfiPkg/RELEASE_GCC/X64/EasyEfiPkg/Application/FileManager/FileManager/OUTPUT/FileManager.efi] Error 1 (ignored)
+
+- Done -
+Build end time: 19:05:08, Nov.21 2026
+Build total time: 00:00:02
+
+== [x64] make fat images (boot ESP + data stick) ==
+image ready: EasyEfiPkg/Application/FileManager/smoke/build/s12-fat-x64.img (64M, fat, X64)
+image ready: EasyEfiPkg/Application/FileManager/smoke/build/s12-fat-x64-stick2.img (64M, fat, X64)
+== [x64/fat] qemu run (key injection) ==
