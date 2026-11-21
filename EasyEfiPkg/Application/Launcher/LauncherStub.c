@@ -17,7 +17,7 @@ EFI_STATUS EFIAPI UefiMain (IN EFI_HANDLE ImageHandle, IN EFI_SYSTEM_TABLE *Syst
   Print (L"[STUB] Launcher aarch64\n");
 #endif
   if (!EFI_ERROR (gBS->LocateProtocol (&gEfiShellProtocolGuid, NULL, (VOID **)&Shell))) {
-    Shell->SetEnv (L"EASYEFI_RAN", L"yes");
+    Shell->SetEnv (L"EASYEFI_RAN", L"yes", TRUE);
   }
   return EFI_SUCCESS;
 }
