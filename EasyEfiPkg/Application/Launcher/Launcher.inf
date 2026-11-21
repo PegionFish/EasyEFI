@@ -1,28 +1,52 @@
-## Launcher STUB 应用（S00 脚手架）
+## Launcher — 启动菜单应用（S11 真实实现：core 状态机 + UEFI glue）
 [Defines]
   INF_VERSION    = 0x0001001b
   BASE_NAME      = Launcher
   FILE_GUID      = 73DE1BA1-D939-4D37-B0F5-19DF80D7BE4B
   MODULE_TYPE    = UEFI_APPLICATION
-  VERSION_STRING = 0.1
+  VERSION_STRING = 1.0
   ENTRY_POINT    = UefiMain
 
 [Sources]
-  LauncherStub.c
+  LauncherCore.c
+  LauncherGlue.c
 
 [Packages]
   MdePkg/MdePkg.dec
   MdeModulePkg/MdeModulePkg.dec
+  RedfishPkg/RedfishPkg.dec
   EasyEfiPkg/EasyEfiPkg.dec
 
 [LibraryClasses]
   UefiApplicationEntryPoint
   UefiLib
   UefiBootServicesTableLib
+  UefiRuntimeServicesTableLib
   PrintLib
+  BaseLib
+  BaseMemoryLib
+  MemoryAllocationLib
+  DevicePathLib
+  PcdLib
+  JsonLib
+  EfiCompatLib
+  TuiScreenLib
+  TuiInputLib
+  ConfigCoreLib
+  ExecPathLib
+  ExecVolumeLib
+  ExecImageLib
+  VolumeModelLib
 
 [Protocols]
   gEfiShellProtocolGuid
+  gEfiLoadedImageProtocolGuid
+
+[Guids]
+  gEfiGlobalVariableGuid
+
+[Pcd]
+  gEasyEfiPkgTokenSpaceGuid.PcdSkipTimeoutDefault
 
 [BuildOptions]
   GCC:*_*_*_CC_FLAGS = -DUEFI_BUILD
