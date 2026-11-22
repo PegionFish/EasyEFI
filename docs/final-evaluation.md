@@ -51,6 +51,28 @@ GPT 镜像（默认 8GiB，可配）
 **集成冒烟**：完整镜像（真实三应用）AA64 + x64 引导 PASS，Launcher 菜单完整渲染
 （状态栏 P3:OK、JSON 工作项架构过滤 [arch mismatch]、FPT/AFU 危险标记 !、内置 FileManager/Editor/NVRAM/Shell/Reboot、键位条）。
 
+### 3.1 UI 截图（QEMU GOP 帧缓冲实拍）
+
+由 `scripts/qemu-screenshot.py`（QMP screendump）抓取真实图形输出，非串口文本重构。
+
+**Launcher 菜单（完整集成镜像引导实拍）**——状态栏 P3:OK、JSON 工作项按架构过滤（异架构灰显 [arch mismatch]）、FPT/AFU 危险标记 !、内置应用与键位条：
+
+![Launcher AA64（100x31，选中项青底高亮）](screenshots/launcher-aa64.png)
+
+![Launcher x64（80x25，危险项红色 !，ARM64 项灰显）](screenshots/launcher-x64.png)
+
+**降级模式（假驱动 load 失败 → P3 不可达，V-06 实证）**——状态栏 P3:DEGRADED + 红色横幅 + 内置系统菜单：
+
+![DEGRADED AA64（内置 6 项，外部位回退选中）](screenshots/degraded-aa64.png)
+
+![DEGRADED x64（同构降级 UI）](screenshots/degraded-x64.png)
+
+**FileManager / Editor（S12/S13 冒烟镜像直启实拍）**：
+
+![FileManager AA64（双栏：左目录列表/右预览，F3–F10 键位条）](screenshots/filemanager-aa64.png)
+
+![Editor AA64（s13test.nsh，UTF-8 状态栏；CJK 显示为 ? 系已知 D7 字体限制，UTF-8 字节保真）](screenshots/editor-aa64.png)
+
 ## 4. 并行开发成效
 
 - **19 任务包**，契约先行（Wave 0 冻结 13 契约头 + stub）+ core/glue 分离 + Ops 双后端 + worktree 隔离。
