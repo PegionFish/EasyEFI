@@ -32,6 +32,10 @@ for ARCH in X64 AARCH64; do
     if [[ -n "$SRC" ]]; then cp "$SRC" "$P/EFI/$APP/$APP.efi" 2>/dev/null || { mkdir -p "$P/EFI/$APP"; cp "$SRC" "$P/EFI/$APP/$APP.efi"; };
     else echo "NOTE: $APP $ARCH not built yet (stub/absent)"; fi
   done
+  # 规范布局（design §3.2）：EFI/Apps/<App>.efi；Launcher 端优先探测此布局
+  for APP in FileManager Editor; do
+    [[ -f "$P/EFI/$APP/$APP.efi" ]] && cp "$P/EFI/$APP/$APP.efi" "$P/EFI/Apps/$APP.efi"
+  done
   # Launcher 放 EFI/Launcher（startup.nsh 路径）
   L=$(efi "$ARCH" "Application/Launcher" "Launcher")
   [[ -n "$L" ]] && cp "$L" "$P/EFI/Launcher/Launcher.efi"

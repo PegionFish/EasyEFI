@@ -20,3 +20,10 @@ staging/
 *.dSYM/
 **/tests/run-tests
 **/tests/gen_golden
+
+# 本地烧录/交接产物（不入库）
+.flash-usb.log*
+dist/
+.qwen/
+qwen-code-export*.html
+*.serial.log

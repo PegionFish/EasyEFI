@@ -13,8 +13,8 @@
 #include "Contract/EfiCompat.h"
 #include "TuiScreenInternal.h"
 
-#define MOCK_CONOUT_MAX_ROWS   128
-#define MOCK_CONOUT_MAX_COLS   256
+#define MOCK_CONOUT_MAX_ROWS   256
+#define MOCK_CONOUT_MAX_COLS   512
 #define MOCK_CONOUT_MAX_MODES  16
 #define MOCK_CONOUT_LOG_CAP    8192
 #define MOCK_CONOUT_STR_CAP    300   /* 单次 OutputString 记录上限（超长截断） */

@@ -394,6 +394,7 @@ STATIC VOID confirm_exec (FM_CORE *C) {
   } else {
     Status = ExecEfi (Fs, full, NULL, &ImageReturn);
   }
+  TuiInvalidate ();   /* 子程序可能已改写屏幕：作废 shadow，下次刷新全量重绘 */
   C->State = FM_STATE_DIR;
   if (EFI_ERROR (Status)) {
     set_message (C, U16("Execution failed (load error)."));
@@ -737,9 +738,11 @@ STATIC VOID handle_dir (FM_CORE *C, CONST TUI_KEY *Key, TUI_COMMAND Cmd) {
       {
         CHAR16 rel[FM_MAX_PATH], full[FM_MAX_PATH + 16];
         EFI_STATUS Status, Ret = EFI_SUCCESS;
+        FS_OPS *EdFs = (C->Init->BootFs != NULL) ? C->Init->BootFs : cur_fs (C);
         path_join (rel, FM_MAX_PATH, C->VolCwd[C->VolIdx], e->Name);
         full_path (C, C->VolIdx, rel, full, sizeof (full) / sizeof (CHAR16));
-        Status = ExecEfi (cur_fs (C), C->Init->EditorPath, full, &Ret);
+        Status = ExecEfi (EdFs, C->Init->EditorPath, full, &Ret);
+        TuiInvalidate ();   /* 编辑器可能已改写屏幕：作废 shadow */
         if (EFI_ERROR (Status)) { set_message (C, U16("Editor launch failed.")); return; }
         reload_dir (C);
       }

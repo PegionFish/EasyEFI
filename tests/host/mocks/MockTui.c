@@ -61,6 +61,7 @@ VOID TuiFill (UINTN Row, UINTN Col, UINTN W, UINTN H, CHAR16 Ch, UINT8 Attr) {
   for (r = Row; r < Row + H; r++) for (c = Col; c < Col + W; c++) TuiPutCell (r, c, Ch, Attr);
 }
 VOID TuiClear (VOID) { memset (g_cells, 0, sizeof (g_cells)); }
+VOID TuiInvalidate (VOID) { }
 EFI_STATUS TuiFlush (VOID) { return EFI_SUCCESS; }
 EFI_STATUS TuiShutdown (VOID) { return EFI_SUCCESS; }
 

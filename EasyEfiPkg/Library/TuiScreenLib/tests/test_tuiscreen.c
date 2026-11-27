@@ -20,25 +20,29 @@ STATIC VOID Setup (CONST UINTN (*Modes)[2], UINTN Count, UINT32 FailMask, INTN C
   MockConOutSetCurrentMode (CurMode);
 }
 
-/* T06-1 模式选择：3 种模式集 + 坏模式跳过 + 平局 + 保底 */
+/* T06-1 模式选择：可读性优先（列少者胜）+ 坏模式跳过 + 基线过滤 + 保底 */
 TEST (t06_1_mode_select) {
   UINTN Rows, Cols;
   CONST MOCK_CALL *E;
-  UINTN ModesA[][2] = { {80, 25}, {80, 50}, {100, 31} };
+  UINTN ModesA[][2] = { {80, 25}, {100, 31} };            /* 旧策略会选 100x31 */
   UINTN ModesB[][2] = { {80, 25} };
-  UINTN ModesE[][2] = { {80, 25}, {40, 50} };   /* 面积平局 2000 */
+  UINTN ModesD[][2] = { {80, 25}, {80, 50}, {100, 31} };  /* 跳过首选后取 80x50 */
+  UINTN ModesE[][2] = { {80, 25}, {40, 50} };             /* 40x50 低于 80x25 基线 */
 
-  /* a) 面积最大 = 80x50（4000 > 3100 > 2000）→ mode 1 */
-  Setup (ModesA, 3, 0, 0);
+  /* a) {80x25,100x31}：列数优先 → 80x25（同一面积下字形最宽）→ mode 0 */
+  Setup (ModesA, 2, 0, 1);         /* 进入前在 mode 1 (100x31) */
   ASSERT_OK (TuiInit ());
   ASSERT_OK (TuiGetSize (&Rows, &Cols));
-  ASSERT_EQ (Rows, 50);
+  ASSERT_EQ (Rows, 25);
   ASSERT_EQ (Cols, 80);
-  ASSERT_EQ (MockConOutCallCount (MOCK_CALL_QUERYMODE), 3);
+  ASSERT_EQ (MockConOutCallCount (MOCK_CALL_QUERYMODE), 2);
   E = MockConOutLastOfType (MOCK_CALL_SETMODE);
   ASSERT_TRUE (E != NULL);
-  ASSERT_EQ (E->A, 1);
+  ASSERT_EQ (E->A, 0);
   ASSERT_OK (TuiShutdown ());
+  E = MockConOutLastOfType (MOCK_CALL_SETMODE);
+  ASSERT_TRUE (E != NULL);
+  ASSERT_EQ (E->A, 1);             /* 恢复进入前模式 */
 
   /* b) 仅 80x25 → mode 0 */
   Setup (ModesB, 1, 0, 0);
@@ -61,18 +65,18 @@ TEST (t06_1_mode_select) {
   ASSERT_OK (TuiShutdown ());
   ASSERT_EQ (MockConOutCallCount (MOCK_CALL_SETMODE), 0);   /* orig=-1 不恢复 */
 
-  /* d) mode 1 QueryMode 失败 → 跳过，选 mode 2 (100x31) */
-  Setup (ModesA, 3, 0x2, 0);
+  /* d) 首选 mode 0 QueryMode 失败 → 跳过；80 列中行数最多 → 80x50 (mode 1) */
+  Setup (ModesD, 3, 0x1, 0);
   ASSERT_OK (TuiInit ());
   ASSERT_OK (TuiGetSize (&Rows, &Cols));
-  ASSERT_EQ (Rows, 31);
-  ASSERT_EQ (Cols, 100);
+  ASSERT_EQ (Rows, 50);
+  ASSERT_EQ (Cols, 80);
   E = MockConOutLastOfType (MOCK_CALL_SETMODE);
   ASSERT_TRUE (E != NULL);
-  ASSERT_EQ (E->A, 2);
+  ASSERT_EQ (E->A, 1);
   ASSERT_OK (TuiShutdown ());
 
-  /* e) 面积平局 → 取最小模式号（确定性） */
+  /* e) 低于 80x25 布局基线的 40x50 不入选（面积再大也不选）→ mode 0 */
   Setup (ModesE, 2, 0, 0);
   ASSERT_OK (TuiInit ());
   ASSERT_OK (TuiGetSize (&Rows, &Cols));
@@ -389,25 +393,90 @@ TEST (t06_8_call_sequence) {
   ASSERT_OK (TuiShutdown ());
 }
 
-/* T06-9 可寻址性探测降级：模拟 OVMF ConSplitter 报告宽度 > 图形实际可寻址宽度 */
+/* T06-9 不可寻址模式拒绝：唯一候选的右下角探测失败 → 不采用其尺寸，保底 80x25 */
 TEST (t06_9_addressability_fallback) {
-  UINTN Modes[][2] = { {80, 25}, {100, 31} };
+  UINTN Modes[][2] = { {320, 75} };
   UINTN Rows, Cols;
   CONST MOCK_CALL *E;
-  Setup (Modes, 2, 0, 0);
-  MockConOutSetCursorColLimit (98);   /* 100 宽模式右缘 2 列不可寻址（OVMF x64 实证） */
+  Setup (Modes, 1, 0, 0);
+  MockConOutSetCursorColLimit (100);   /* 320 宽模式右缘不可寻址（模拟 OVMF ConSplitter） */
   ASSERT_OK (TuiInit ());
-  /* 100x31 探测 (99,30) 失败 → 降级 80x25 探测 (79,24) 成功 */
+  ASSERT_OK (TuiGetSize (&Rows, &Cols));
+  ASSERT_EQ (Rows, 25);                /* 不能用 320x75 建缓冲（否则右下角不可写） */
+  ASSERT_EQ (Cols, 80);
+  E = MockConOutLastOfType (MOCK_CALL_SETMODE);
+  ASSERT_TRUE (E != NULL);
+  ASSERT_EQ (E->A, 0);                 /* 探测过 mode 0，但被拒 */
+  ASSERT_OK (TuiFlush ());             /* 保底尺寸写入不受列限影响，无滚动 */
+  ASSERT_EQ (MockConOutScrolls (), 0);
+  ASSERT_OK (TuiShutdown ());
+}
+
+/* T06-10 差分重绘：整帧 TuiClear+重绘同内容 → 0 输出；改 1 格 → 1 段输出 */
+TEST (t06_10_diff_flush) {
+  UINTN Modes[][2] = { {20, 6} };
+  UINTN n;
+  Setup (Modes, 1, 0, 0);
+  ASSERT_OK (TuiInit ());
+  TuiPutText (1, 1, U16 ("HELLO"), TUI_ATTR_NORMAL);
+  ASSERT_OK (TuiFlush ());             /* 首帧 valid=0 → 全量 6 段 */
+  n = MockConOutCallCount (MOCK_CALL_OUTPUT);
+  ASSERT_EQ (n, 6);
+
+  TuiClear ();                         /* 目标状态与屏幕一致 */
+  TuiPutText (1, 1, U16 ("HELLO"), TUI_ATTR_NORMAL);
+  ASSERT_OK (TuiFlush ());
+  ASSERT_EQ (MockConOutCallCount (MOCK_CALL_OUTPUT), n);   /* 零输出 */
+
+  TuiPutCell (3, 5, 'X', TUI_ATTR_SELECTED);
+  ASSERT_OK (TuiFlush ());
+  ASSERT_EQ (MockConOutCallCount (MOCK_CALL_OUTPUT), n + 1);
+  ASSERT_EQ (MockConOutScreen (3, 5).Char, 'X');
+  ASSERT_OK (TuiShutdown ());
+}
+
+/* T06-11 外部改写：TuiInvalidate 后下一次 Flush 全量重绘，随后恢复差分 */
+TEST (t06_11_invalidate) {
+  UINTN Modes[][2] = { {20, 6} };
+  UINTN n0, n1;
+  Setup (Modes, 1, 0, 0);
+  ASSERT_OK (TuiInit ());
+  TuiPutText (0, 0, U16 ("ABC"), TUI_ATTR_NORMAL);
+  ASSERT_OK (TuiFlush ());
+  n0 = MockConOutCallCount (MOCK_CALL_OUTPUT);
+  ASSERT_OK (TuiFlush ());                        /* 无变化 → 0 输出 */
+  ASSERT_EQ (MockConOutCallCount (MOCK_CALL_OUTPUT), n0);
+
+  TuiInvalidate ();                               /* 模拟子镜像已经改写屏幕 */
+  ASSERT_OK (TuiFlush ());
+  n1 = MockConOutCallCount (MOCK_CALL_OUTPUT);
+  ASSERT_EQ (n1 - n0, 6);                         /* 全量：6 行各一段 */
+
+  ASSERT_OK (TuiFlush ());                        /* 又恢复差分：0 输出 */
+  ASSERT_EQ (MockConOutCallCount (MOCK_CALL_OUTPUT), n1);
+  ASSERT_OK (TuiShutdown ());
+  TuiInvalidate ();                               /* 未初始化安全（no-op） */
+}
+
+/* T06-12 4K 屏回归：固件默认模式 320x75（最大面积）不再入选，取 80x25 */
+TEST (t06_12_4k_readability) {
+  UINTN Modes[][2] = { {80, 25}, {100, 31}, {160, 50}, {320, 75} };
+  UINTN Rows, Cols;
+  CONST MOCK_CALL *E;
+  Setup (Modes, 4, 0, 3);              /* 进入前固件已选 320x75 */
+  ASSERT_OK (TuiInit ());
   ASSERT_OK (TuiGetSize (&Rows, &Cols));
   ASSERT_EQ (Rows, 25);
   ASSERT_EQ (Cols, 80);
   E = MockConOutLastOfType (MOCK_CALL_SETMODE);
   ASSERT_TRUE (E != NULL);
   ASSERT_EQ (E->A, 0);
-  /* 降级后整屏 Flush 不受列限影响（80 < 98），无错误 */
   ASSERT_OK (TuiFlush ());
   ASSERT_EQ (MockConOutScrolls (), 0);
   ASSERT_OK (TuiShutdown ());
+  E = MockConOutLastOfType (MOCK_CALL_SETMODE);
+  ASSERT_TRUE (E != NULL);
+  ASSERT_EQ (E->A, 3);                 /* Shutdown 恢复 320x75 */
 }
 
 int main (void) {
@@ -420,5 +489,8 @@ int main (void) {
   RUN_TEST (t06_7_uninit_safe);
   RUN_TEST (t06_8_call_sequence);
   RUN_TEST (t06_9_addressability_fallback);
+  RUN_TEST (t06_10_diff_flush);
+  RUN_TEST (t06_11_invalidate);
+  RUN_TEST (t06_12_4k_readability);
   RUN_TESTS_END ();
 }

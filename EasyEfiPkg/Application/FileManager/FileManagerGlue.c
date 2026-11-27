@@ -30,6 +30,7 @@ typedef struct {
   CHAR16              *NameBuf;        /* VolCount*16 连续映射名存储 */
   CONST CHAR16        **FsNames;       /* 指针数组（FM_INIT 借用） */
   CHAR16              BootFsName[16];
+  FS_OPS              *BootFs;         /* 启动 ESP 卷（FM_INIT 借用，F4 编辑器执行） */
   CHAR16              EditorPath[128];
   CHAR16              ShellPath[128];
   FM_INIT             Init;
@@ -135,20 +136,48 @@ STATIC EFI_STATUS RefreshVolumes (FM_GLUE *G) {
 
   /* 启动 ESP：分区 DP 逐字节匹配 */
   G->BootFsName[0] = 0;
+  G->BootFs = NULL;
   if (G->BootPartDp != NULL) {
     for (i = 0; i < G->VolCount; i++) {
       if (G->Vols[i].DpLen == G->BootPartDpLen &&
           CompareMem (G->Vols[i].Dp, G->BootPartDp, G->BootPartDpLen) == 0) {
+        G->BootFs = G->Vols[i].Fs;
         MapName (G, G->Vols[i].Dp, G->BootFsName, 16);
         break;
       }
     }
   }
-  /* Editor：启动 ESP \EFI\Apps\Editor.efi（架构由镜像布局保证，design §7.2） */
+  /* Editor：卷相对路径，按布局探测（规范 EFI/Apps/Editor.efi → 旧集成布局
+     EFI/Editor/Editor.efi → 架构后缀），由 FmCore 用 BootFs 执行。 */
   G->EditorPath[0] = 0;
-  if (G->BootFsName[0]) {
-    UnicodeSPrint (G->EditorPath, sizeof (G->EditorPath), L"%s/EFI/Apps/Editor.efi", G->BootFsName);
+  if (G->BootFs != NULL) {
+#if defined(MDE_CPU_X64)
+    CONST CHAR16 *Suffix = L"X64";
+#elif defined(MDE_CPU_AARCH64)
+    CONST CHAR16 *Suffix = L"AA64";
+#else
+    CONST CHAR16 *Suffix = L"";
+#endif
+    FS_ENTRY      ent;
+    CHAR16        SuffixPath[64];
+    CONST CHAR16 *Cands[3];
+    UINTN         k;
+
+    UnicodeSPrint (SuffixPath, sizeof (SuffixPath), L"EFI/Apps/Editor%s.efi", Suffix);
+    Cands[0] = L"EFI/Apps/Editor.efi";
+    Cands[1] = L"EFI/Editor/Editor.efi";
+    Cands[2] = SuffixPath;
+    for (k = 0; k < 3; k++) {
+      if (!EFI_ERROR (G->BootFs->Info (G->BootFs, Cands[k], &ent))) {
+        StrCpyS (G->EditorPath, 128, Cands[k]);
+        break;
+      }
+    }
+    if (G->EditorPath[0] == 0) {
+      StrCpyS (G->EditorPath, 128, Cands[0]);
+    }
   }
+  G->Init.BootFs = G->BootFs;
   /* Shell：优先 EFI/BOOT/Shell.efi，回退本架构 BOOT 名（测试镜像布局） */
   G->ShellPath[0] = 0;
   if (G->BootFsName[0] && G->BootPartDp != NULL) {

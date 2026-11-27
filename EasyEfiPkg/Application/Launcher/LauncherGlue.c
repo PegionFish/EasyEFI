@@ -170,11 +170,44 @@ STATIC EFI_STATUS RefreshVolumes (GLUE_CTX *G) {
   return EFI_SUCCESS;
 }
 
-/* apps 路径：严格布局优先；不存在 → 兼容布局架构后缀名（§5.4） */
+/* 单个 app 的卷相对路径解析（ExecEfi 语义：Fs + 卷相对路径）：
+   ① 规范布局 EFI/Apps/<App>.efi（design §3.2）
+   ② 旧集成布局 EFI/<App>/<App>.efi（S18 镜像实际布局）
+   ③ 兼容布局 EFI/Apps/<App><X64|AA64>.efi（§5.4 架构后缀）
+   全未命中回落 ①，由 exec 层报 EFI_NOT_FOUND（错误可见，不静默）。 */
+STATIC VOID ResolveAppPath (
+  FS_OPS       *Fs,
+  CHAR16       *Rel,
+  UINTN        RelChars,
+  CONST CHAR16 *Name,
+  CONST CHAR16 *Suffix
+  )
+{
+  FS_ENTRY E;
+  CHAR16   Path[96];
+
+  if (Fs != NULL) {
+    UnicodeSPrint (Path, sizeof (Path), L"EFI/Apps/%s.efi", Name);
+    if (!EFI_ERROR (Fs->Info (Fs, Path, &E))) {
+      StrCpyS (Rel, RelChars, Path);
+      return;
+    }
+    UnicodeSPrint (Path, sizeof (Path), L"EFI/%s/%s.efi", Name, Name);
+    if (!EFI_ERROR (Fs->Info (Fs, Path, &E))) {
+      StrCpyS (Rel, RelChars, Path);
+      return;
+    }
+    UnicodeSPrint (Path, sizeof (Path), L"EFI/Apps/%s%s.efi", Name, Suffix);
+    if (!EFI_ERROR (Fs->Info (Fs, Path, &E))) {
+      StrCpyS (Rel, RelChars, Path);
+      return;
+    }
+  }
+  UnicodeSPrint (Rel, RelChars * sizeof (CHAR16), L"EFI/Apps/%s.efi", Name);
+}
+
 STATIC VOID ResolveAppPaths (GLUE_CTX *G) {
-  FS_ENTRY   E;
-  FS_OPS     *Fs = G->Sess.BootFs;
-  CONST CHAR16 *Plain, *Suffix;
+  CONST CHAR16 *Suffix;
 #if defined(MDE_CPU_X64)
   Suffix = L"X64";
 #elif defined(MDE_CPU_AARCH64)
@@ -182,18 +215,8 @@ STATIC VOID ResolveAppPaths (GLUE_CTX *G) {
 #else
   Suffix = L"";
 #endif
-  Plain = L"EFI/Apps/FileManager.efi";
-  if (Fs != NULL && !EFI_ERROR (Fs->Info (Fs, Plain, &E))) {
-    StrCpyS (G->FmRel, 64, Plain);
-  } else {
-    UnicodeSPrint (G->FmRel, sizeof (G->FmRel), L"EFI/Apps/FileManager%s.efi", Suffix);
-  }
-  Plain = L"EFI/Apps/Editor.efi";
-  if (Fs != NULL && !EFI_ERROR (Fs->Info (Fs, Plain, &E))) {
-    StrCpyS (G->EdRel, 64, Plain);
-  } else {
-    UnicodeSPrint (G->EdRel, sizeof (G->EdRel), L"EFI/Apps/Editor%s.efi", Suffix);
-  }
+  ResolveAppPath (G->Sess.BootFs, G->FmRel, 64, L"FileManager", Suffix);
+  ResolveAppPath (G->Sess.BootFs, G->EdRel, 64, L"Editor", Suffix);
 }
 
 /* ---- launcher.json 加载 ---- */

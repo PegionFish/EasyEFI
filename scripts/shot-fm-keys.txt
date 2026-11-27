@@ -1,0 +1,6 @@
+# 从菜单 item3(选中) Down×4 跳过灰显到 item10 FileManager→Enter
+1 down
+2 down
+3 down
+4 down
+6 ret

@@ -67,7 +67,8 @@ typedef struct {
   VOLUME_INFO     *Vols;          /* glue 持有，core 借用；Count=0 → 仅 MESSAGE */
   UINTN           VolCount;
   CONST CHAR16    **FsNames;      /* 与 Vols 平行的 Shell 映射名数组 L"fsN:" */
-  CONST CHAR16    *EditorPath;    /* 全限定 fsN:/EFI/Apps/Editor.efi（glue 按架构布局解析） */
+  FS_OPS          *BootFs;        /* 启动 ESP 卷（glue 解析；Editor 执行用，可 NULL） */
+  CONST CHAR16    *EditorPath;    /* 卷相对 EFI/Apps/Editor.efi（glue 按布局探测） */
   CONST CHAR16    *ShellPath;     /* 全限定 fsN:/.../Shell.efi（ExecNsh 用） */
   UINTN           PreviewMaxBytes;/* PcdPreviewMaxBytes（glue 传入，不硬编码） */
   FM_PLATFORM_OPS *Ops;

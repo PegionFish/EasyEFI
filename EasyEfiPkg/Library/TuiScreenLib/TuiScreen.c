@@ -1,12 +1,16 @@
 /** @file
-  TuiScreenLib 核心 — ConOut 文本模式管理 + 单元格缓冲 + 脏区重绘（S06）。
+  TuiScreenLib 核心 — ConOut 文本模式管理 + 单元格缓冲 + 脏区差分重绘（S06）。
   双环境共享（宿主/UEFI）：只用 Contract 头 + EfiMem + 内部后端接缝，
   ConOut 经 TuiScreenBackend() 链接期注入（UEFI 见 TuiScreenUefi.c）。
 
   语义（与 tests/host/mocks/MockTui.c 对齐）：
     - PutCell/PutText/Fill 越界写入丢弃（不环绕、不崩溃）；
     - 写入相同值不置脏；TuiClear = 全缓冲 ' ' + TUI_ATTR_NORMAL 并全置脏；
-    - Flush 只重绘脏格，按行合并同属性连续脏格为一次 OutputString。
+    - Flush 双缓冲差分：只输出“屏幕未知（valid=0）或与上次成功输出不同”的格，
+      按行合并同属性连续格为一次 OutputString。TuiClear + 整帧重绘只重画真正
+      变化的格（不再整屏重写；S19 修复 4K 模式下按键逐行爬行）；
+    - 外部镜像/嵌套 Shell 会改写屏幕：执行返回后必须调用 TuiInvalidate()，
+      清 valid，下次 Flush 全量重绘，随后恢复差分。
 
   滚动安全（edk2-stable202608 实证，GraphicsConsoleDxe/GraphicsConsole.c）：
     - OutputString 画到行末（CursorColumn >= MaxColumn）会立即内部输出 CRLF；
@@ -22,8 +26,10 @@
 #include "TuiScreenInternal.h"
 
 STATIC TUI_CONOUT *mBe       = NULL;
-STATIC TUI_CELL   *mCells    = NULL;   /* ROWS*COLS 单元格矩阵 */
+STATIC TUI_CELL   *mCells    = NULL;   /* ROWS*COLS 目标状态矩阵 */
 STATIC UINT8      *mDirty    = NULL;   /* ROWS*COLS 脏标记 */
+STATIC TUI_CELL   *mShadow   = NULL;   /* ROWS*COLS 上次成功输出到屏幕的格 */
+STATIC UINT8      *mValid    = NULL;   /* ROWS*COLS 0=屏幕内容未知，必输出 */
 STATIC CHAR16     *mRun      = NULL;   /* COLS+1 输出行缓冲 */
 STATIC UINTN       mRows     = 0;
 STATIC UINTN       mCols     = 0;
@@ -31,9 +37,11 @@ STATIC INTN        mOrigMode = -1;     /* 进入前模式，Shutdown 恢复 */
 STATIC BOOLEAN     mReady    = FALSE;
 
 STATIC VOID FreeBuffers (VOID) {
-  if (mCells != NULL) { MemFree (mCells); mCells = NULL; }
-  if (mDirty != NULL) { MemFree (mDirty); mDirty = NULL; }
-  if (mRun   != NULL) { MemFree (mRun);   mRun   = NULL; }
+  if (mCells  != NULL) { MemFree (mCells);  mCells  = NULL; }
+  if (mDirty  != NULL) { MemFree (mDirty);  mDirty  = NULL; }
+  if (mShadow != NULL) { MemFree (mShadow); mShadow = NULL; }
+  if (mValid  != NULL) { MemFree (mValid);  mValid  = NULL; }
+  if (mRun    != NULL) { MemFree (mRun);    mRun    = NULL; }
 }
 
 /* 候选文本模式（TuiInit 枚举用） */
@@ -44,12 +52,24 @@ typedef struct {
   UINTN Area;
 } TUI_MODE_CAND;
 
+/* 候选排序：列数升序（字形最宽）→ 行数降序（同列数信息量最大）→ 模式号升序（确定性） */
+STATIC BOOLEAN ModeLess (CONST TUI_MODE_CAND *A, CONST TUI_MODE_CAND *B) {
+  if (A->Cols != B->Cols) {
+    return (BOOLEAN)(A->Cols < B->Cols);
+  }
+  if (A->Rows != B->Rows) {
+    return (BOOLEAN)(A->Rows > B->Rows);
+  }
+  return (BOOLEAN)(A->Mode < B->Mode);
+}
+
 EFI_STATUS TuiInit (VOID) {
-  TUI_CONOUT   *Be;
-  TUI_MODE_CAND Cand[TUI_SCREEN_MAX_MODES];
-  TUI_MODE_CAND Key;
-  UINTN         NCand, Mode, Cols, Rows, i, j;
-  BOOLEAN       Found;
+  TUI_CONOUT    *Be;
+  TUI_MODE_CAND  Cand[TUI_SCREEN_MAX_MODES];
+  TUI_MODE_CAND  Key;
+  BOOLEAN        Tried[TUI_SCREEN_MAX_MODES];
+  UINTN          NCand, Mode, Cols, Rows, i, j;
+  BOOLEAN        Found;
 
   if (mReady) {
     return EFI_SUCCESS;   /* 幂等 */
@@ -80,11 +100,13 @@ EFI_STATUS TuiInit (VOID) {
     Cand[NCand].Area = Cols * Rows;
     NCand++;
   }
-  /* 稳定插入排序：面积降序（平局保持模式号升序 → 取最小模式号） */
+  /* 稳定插入排序：可读性优先（见 ModeLess）。高 DPI/4K 固件常把 320x75 之类的
+     “最大面积”模式当默认，实际字形仅十几像素宽、不可读；TUI 布局只保证 80x25，
+     故优先列数最少（字形最宽）的模式：4K 屏会落到 80x25/128x40 一类，字放大数倍。 */
   for (i = 1; i < NCand; i++) {
     Key = Cand[i];
     j = i;
-    while (j > 0 && Cand[j - 1].Area < Key.Area) {
+    while (j > 0 && ModeLess (&Key, &Cand[j - 1])) {
       Cand[j] = Cand[j - 1];
       j--;
     }
@@ -93,11 +115,18 @@ EFI_STATUS TuiInit (VOID) {
 
   mOrigMode = Be->CurrentMode;
   Found = FALSE;
-  /* 取最大“完全可寻址”模式：SetMode 后探测右下角 SetCursorPosition(Cols-1, Rows-1)。
-     OVMF ConSplitter 实证（x64）：QueryMode 报告的模式宽度可能大于图形控制台实际
-     可寻址宽度（右缘列 SetCursorPosition 返回 EFI_UNSUPPORTED），故须探测，
-     失败则降级到次大候选，直至保底 80x25。 */
   for (i = 0; i < NCand; i++) {
+    Tried[i] = FALSE;
+  }
+  /* 第一轮（可读性优先）：满足布局基线 80x25 的候选中按 ModeLess 顺序取第一个。
+     SetMode 后探测右下角 SetCursorPosition(Cols-1, Rows-1)：OVMF ConSplitter 实证
+     查询宽度可能大于图形控制台实际可寻址宽度（右缘列返回 EFI_UNSUPPORTED），
+     失败换下一个候选。 */
+  for (i = 0; i < NCand; i++) {
+    if (Cand[i].Cols < TUI_SCREEN_FALLBACK_COLS || Cand[i].Rows < TUI_SCREEN_FALLBACK_ROWS) {
+      continue;
+    }
+    Tried[i] = TRUE;
     if (EFI_ERROR (Be->SetMode (Cand[i].Mode))) {
       continue;
     }
@@ -109,20 +138,47 @@ EFI_STATUS TuiInit (VOID) {
     Found = TRUE;
     break;
   }
+  /* 第二轮（异常固件：无 >=80x25 的可寻址模式）：按面积最大逐个探测，维持旧行为。 */
+  while (!Found) {
+    UINTN Best = (UINTN)-1;
+    for (i = 0; i < NCand; i++) {
+      if (!Tried[i] && (Best == (UINTN)-1 || Cand[i].Area > Cand[Best].Area)) {
+        Best = i;
+      }
+    }
+    if (Best == (UINTN)-1) {
+      break;
+    }
+    Tried[Best] = TRUE;
+    if (EFI_ERROR (Be->SetMode (Cand[Best].Mode))) {
+      continue;
+    }
+    if (EFI_ERROR (Be->SetCursorPosition (Cand[Best].Cols - 1, Cand[Best].Rows - 1))) {
+      continue;
+    }
+    mCols = Cand[Best].Cols;
+    mRows = Cand[Best].Rows;
+    Found = TRUE;
+  }
   if (!Found) {
     /* 保底 80x25：无可查询/可寻址模式时不 SetMode，按保底尺寸建缓冲 */
     mCols = TUI_SCREEN_FALLBACK_COLS;
     mRows = TUI_SCREEN_FALLBACK_ROWS;
   }
 
-  mCells = MemAlloc (mRows * mCols * sizeof (TUI_CELL));
-  mDirty = MemAlloc (mRows * mCols);
-  mRun   = MemAlloc ((mCols + 1) * sizeof (CHAR16));
-  if (mCells == NULL || mDirty == NULL || mRun == NULL) {
+  mCells  = MemAlloc (mRows * mCols * sizeof (TUI_CELL));
+  mDirty  = MemAlloc (mRows * mCols);
+  mShadow = MemAlloc (mRows * mCols * sizeof (TUI_CELL));
+  mValid  = MemAlloc (mRows * mCols);
+  mRun    = MemAlloc ((mCols + 1) * sizeof (CHAR16));
+  if (mCells == NULL || mDirty == NULL || mShadow == NULL || mValid == NULL || mRun == NULL) {
     FreeBuffers ();
     mRows = 0;
     mCols = 0;
     return EFI_OUT_OF_RESOURCES;
+  }
+  for (i = 0; i < mRows * mCols; i++) {
+    mValid[i] = 0;   /* 首帧屏幕内容未知：Flush 全量重绘 */
   }
 
   mBe    = Be;
@@ -194,6 +250,19 @@ VOID TuiClear (VOID) {
   }
 }
 
+/* 屏幕内容被外部程序改写（子镜像执行、嵌套 Shell、SetMode 等）：
+   清 valid，下次 Flush 全量重绘，随后恢复基于 shadow 的差分。 */
+VOID TuiInvalidate (VOID) {
+  UINTN Idx, N;
+  if (!mReady) {
+    return;
+  }
+  N = mRows * mCols;
+  for (Idx = 0; Idx < N; Idx++) {
+    mValid[Idx] = 0;
+  }
+}
+
 /* 输出一段连续同属性单元格（Len >= 1，Start+Len <= mCols）。
    调用方保证：最后一行的段不含右下角格（不会画到行末触发 CRLF 滚动）。 */
 STATIC EFI_STATUS OutputRun (UINTN Row, UINTN Start, UINTN Len, UINT8 Attr) {
@@ -214,8 +283,26 @@ STATIC EFI_STATUS OutputRun (UINTN Row, UINTN Start, UINTN Len, UINT8 Attr) {
   return mBe->OutputString (mRun);
 }
 
+/* 该格是否需要输出：屏幕内容未知（valid=0），或缓冲与上次成功输出不同。
+   右下角格恒不输出（画出即滚动，见文件头注释），且不参与判断——否则每次
+   Flush 都会因它重复尝试，使“无变化帧零输出”不成立。 */
+STATIC BOOLEAN CellNeeds (UINTN Row, UINTN Col) {
+  UINTN Idx = Row * mCols + Col;
+  if (Row == mRows - 1 && Col == mCols - 1) {
+    return FALSE;
+  }
+  if (mValid[Idx] == 0) {
+    return TRUE;
+  }
+  if (mDirty[Idx] == 0) {
+    return FALSE;
+  }
+  return (BOOLEAN)(mCells[Idx].Char != mShadow[Idx].Char ||
+                   mCells[Idx].Attr != mShadow[Idx].Attr);
+}
+
 EFI_STATUS TuiFlush (VOID) {
-  UINTN      Row, Col, Start, End, Len;
+  UINTN      Row, Col, First, Last, Start, End, Len;
   UINT8      Attr;
   EFI_STATUS Status, Ret;
 
@@ -224,37 +311,44 @@ EFI_STATUS TuiFlush (VOID) {
   }
   Ret = EFI_SUCCESS;
   for (Row = 0; Row < mRows; Row++) {
-    Col = 0;
-    while (Col < mCols) {
-      if (mDirty[Row * mCols + Col] == 0) {
-        Col++;
-        continue;
+    /* 行内需求范围 [First, Last]：本行首个/末个需输出格。范围内无需输出的格
+       （典型：词间空格）也随段输出——保证序列化文本连续（QEMU expect 断言整行
+       文案），同时不把未变区域扩进输出（性能：按键只重绘真正变化的行段）。 */
+    First = mCols;
+    Last  = 0;
+    for (Col = 0; Col < mCols; Col++) {
+      if (CellNeeds (Row, Col)) {
+        if (First == mCols) {
+          First = Col;
+        }
+        Last = Col;
+      } else {
+        mDirty[Row * mCols + Col] = 0;
       }
-      /* 极大连续同属性脏段 [Start, End) */
-      Start = Col;
+    }
+    if (First == mCols) {
+      continue;                       /* 本行无变化：零输出 */
+    }
+    Col = First;
+    while (Col <= Last) {
       Attr  = mCells[Row * mCols + Col].Attr;
-      End   = Col + 1;
-      while (End < mCols &&
-             mDirty[Row * mCols + End] != 0 &&
-             mCells[Row * mCols + End].Attr == Attr) {
+      Start = Col;
+      End   = Col;
+      while (End <= Last && mCells[Row * mCols + End].Attr == Attr) {
         End++;
       }
       Len = End - Start;
-      if (Row == mRows - 1 && End == mCols) {
-        /* 右下角格永不输出（画出即滚动，见文件头注释）；清脏保留缓冲值 */
-        Len--;
-        mDirty[Row * mCols + (mCols - 1)] = 0;
-      }
-      if (Len > 0) {
-        Status = OutputRun (Row, Start, Len, Attr);
-        if (EFI_ERROR (Status)) {
-          Ret = Status;
-        }
+      Status = OutputRun (Row, Start, Len, Attr);
+      if (EFI_ERROR (Status)) {
+        Ret = Status;      /* 输出失败：保留脏位/valid，下次 Flush 重试 */
+        Col = End;
+        continue;
       }
       for (Col = Start; Col < End; Col++) {
-        mDirty[Row * mCols + Col] = 0;
+        mShadow[Row * mCols + Col] = mCells[Row * mCols + Col];
+        mValid[Row * mCols + Col]  = 1;
+        mDirty[Row * mCols + Col]  = 0;
       }
-      Col = End;
     }
   }
   /* 光标停回可视区内，避免遗留待卷绕位置导致后续输出滚动 */

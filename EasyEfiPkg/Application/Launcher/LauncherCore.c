@@ -371,6 +371,7 @@ STATIC VOID DoReset (LAUNCHER_CORE *C) {
 STATIC VOID DoExecEfi (LAUNCHER_CORE *C, FS_OPS *Fs, CONST CHAR16 *Full, CONST CHAR16 *Opts) {
   EFI_STATUS Ret = EFI_SUCCESS;
   EFI_STATUS S   = ExecEfi (Fs, Full, Opts, &Ret);
+  TuiInvalidate ();   /* 子镜像可能已改写屏幕：作废 shadow，下次 Flush 全量重绘 */
   if (EFI_ERROR (S)) {
     EnterErrorStatus (C, U16("Exec failed:"), S);
     return;
@@ -391,6 +392,7 @@ STATIC VOID DoExecNsh (LAUNCHER_CORE *C, CONST CHAR16 *ScriptFull, CONST CHAR16 
     return;
   }
   S = ExecNsh (C->Init.ShellRel, ScriptFull, Opts);
+  TuiInvalidate ();   /* 嵌套 Shell 可能已改写屏幕：作废 shadow */
   if (EFI_ERROR (S)) {
     EnterErrorStatus (C, U16("Nested shell failed:"), S);
     return;
